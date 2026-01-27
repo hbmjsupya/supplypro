@@ -1,0 +1,82 @@
+-- 插入供应商
+INSERT INTO suppliers (supplier_no, name, contact_person, contact_phone, settlement_type, settlement_period, prepayment_balance, status)
+VALUES 
+('SUP001', '联想（北京）有限公司', '张三', '13800138001', 'PERIOD', 30, 0, 'ACTIVE'),
+('SUP002', '戴尔（中国）有限公司', '李四', '13900139002', 'CASH', 0, 0, 'ACTIVE'),
+('SUP003', '华为技术有限公司', '王五', '13700137003', 'PREPAYMENT', 0, 100000, 'ACTIVE');
+
+-- 插入仓库
+INSERT INTO warehouses (name, code, region, address, manager, status)
+VALUES 
+('北京顺义仓', 'WH_BJ_01', '华北/北京/顺义', '顺义区南法信镇', '赵六', 'ACTIVE'),
+('上海青浦仓', 'WH_SH_01', '华东/上海/青浦', '青浦区徐泾镇', '孙七', 'ACTIVE'),
+('广州白云仓', 'WH_GZ_01', '华南/广东/广州', '白云区太和镇', '周八', 'ACTIVE');
+
+-- 插入商品 (生成100个)
+DELIMITER $$
+CREATE PROCEDURE generate_products()
+BEGIN
+    DECLARE i INT DEFAULT 1;
+    WHILE i <= 100 DO
+        INSERT INTO products (sku_code, name, brand, category, spec, cost_price, default_supplier_id, status)
+        VALUES (
+            CONCAT('SKU', LPAD(i, 6, '0')),
+            CONCAT('测试商品_', i),
+            CASE MOD(i, 3) WHEN 0 THEN '联想' WHEN 1 THEN '戴尔' ELSE '华为' END,
+            '电子产品',
+            '标准规格',
+            ROUND(RAND() * 1000 + 100, 2),
+            CASE MOD(i, 3) WHEN 0 THEN 1 WHEN 1 THEN 2 ELSE 3 END,
+            'ACTIVE'
+        );
+        SET i = i + 1;
+    END WHILE;
+END$$
+DELIMITER ;
+CALL generate_products();
+DROP PROCEDURE generate_products;
+
+-- 插入采购单 (生成1000个)
+DELIMITER $$
+CREATE PROCEDURE generate_purchase_orders()
+BEGIN
+    DECLARE i INT DEFAULT 1;
+    WHILE i <= 1000 DO
+        INSERT INTO purchase_orders (order_no, supplier_id, warehouse_id, type, status, total_amount, delivery_date, created_by, created_at)
+        VALUES (
+            CONCAT('PO', DATE_FORMAT(NOW(), '%Y%m%d'), LPAD(i, 6, '0')),
+            FLOOR(RAND() * 3) + 1,
+            FLOOR(RAND() * 3) + 1,
+            CASE FLOOR(RAND() * 3) WHEN 0 THEN 'INBOUND' WHEN 1 THEN 'DROPSHIP' ELSE 'SELF' END,
+            CASE FLOOR(RAND() * 6) 
+                WHEN 0 THEN 'PENDING' 
+                WHEN 1 THEN 'CONFIRMED' 
+                WHEN 2 THEN 'SHIPPED' 
+                WHEN 3 THEN 'RECEIVED' 
+                WHEN 4 THEN 'COMPLETED' 
+                ELSE 'CANCELLED' 
+            END,
+            ROUND(RAND() * 10000 + 1000, 2),
+            DATE_ADD(NOW(), INTERVAL FLOOR(RAND() * 30) DAY),
+            'admin',
+            DATE_SUB(NOW(), INTERVAL FLOOR(RAND() * 365) DAY)
+        );
+        
+        -- 插入订单明细
+        INSERT INTO purchase_order_items (order_id, product_id, quantity, unit_price, total_price)
+        SELECT 
+            LAST_INSERT_ID(),
+            id,
+            FLOOR(RAND() * 100) + 1,
+            cost_price,
+            cost_price * (FLOOR(RAND() * 100) + 1)
+        FROM products 
+        ORDER BY RAND() 
+        LIMIT 2;
+
+        SET i = i + 1;
+    END WHILE;
+END$$
+DELIMITER ;
+CALL generate_purchase_orders();
+DROP PROCEDURE generate_purchase_orders;

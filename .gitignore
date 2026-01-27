@@ -1,0 +1,20 @@
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Maven
+target/
+*.log
+
+# Node
+node_modules/
+dist/
+npm-debug.log
+
+# System
+.DS_Store
+Thumbs.db
+
+# Docker
+daemon.json

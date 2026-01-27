@@ -1,0 +1,40 @@
+server:
+  port: 8080
+
+spring:
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  application:
+    name: supplypro-backend
+  datasource:
+    url: jdbc:mysql://supplypro-db:3306/supplypro?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8
+    username: root
+    password: password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  sql:
+    init:
+      mode: never
+      schema-locations: classpath:db/migration/V1.0__init_schema.sql
+      # data-locations: classpath:db/migration/V1.1__init_data.sql
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.supplypro.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+supplypro:
+  app:
+    jwtSecret: supplyproSecretKeyForJwtAuthenticationSupplyProSecretKeyForJwtAuthentication
+    jwtExpirationMs: 86400000

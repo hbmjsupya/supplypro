@@ -1,0 +1,17 @@
+CREATE TABLE IF NOT EXISTS brands (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    trademark_no VARCHAR(255),
+    icon VARCHAR(255),
+    status VARCHAR(20) DEFAULT 'ENABLED',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS brand_supplier (
+    brand_id BIGINT NOT NULL,
+    supplier_id BIGINT NOT NULL,
+    PRIMARY KEY (brand_id, supplier_id),
+    FOREIGN KEY (brand_id) REFERENCES brands(id),
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
