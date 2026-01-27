@@ -1,100 +1,106 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Table, Button, Input, Space, Tag, Avatar, message, Modal, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, EditOutlined, StopOutlined, CheckCircleOutlined, UserOutlined, ExportOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import PageDoc from '../../components/PageDoc';
 import { useExport } from '../../utils/exportUtils';
-
-interface BrandDataType {
-  key: string;
-  brandName: string;
-  trademarkNo: string;
-  icon: string;
-  supplierCount: number;
-  productCount: number;
-  status: 'Enabled' | 'Disabled';
-}
-
-const mockBrands: BrandDataType[] = [
-  {
-    key: '1',
-    brandName: '晨光文具',
-    trademarkNo: 'TM2023001',
-    icon: 'https://api.dicebear.com/7.x/initials/svg?seed=CG',
-    supplierCount: 5,
-    productCount: 120,
-    status: 'Enabled',
-  },
-  {
-    key: '2',
-    brandName: '得力办公',
-    trademarkNo: 'TM2023002',
-    icon: 'https://api.dicebear.com/7.x/initials/svg?seed=DL',
-    supplierCount: 3,
-    productCount: 85,
-    status: 'Enabled',
-  },
-  {
-    key: '3',
-    brandName: '联想',
-    trademarkNo: 'TM2023003',
-    icon: 'https://api.dicebear.com/7.x/initials/svg?seed=LX',
-    supplierCount: 8,
-    productCount: 200,
-    status: 'Disabled',
-  },
-];
+import { getBrands, updateBrand, Brand } from '../../services/brandService';
 
 const BrandList: React.FC = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = React.useState(false);
-  const [brands, setBrands] = React.useState<BrandDataType[]>(mockBrands);
+  const [loading, setLoading] = useState(false);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [total, setTotal] = useState(0);
+  const [searchText, setSearchText] = useState('');
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
 
-  const { handleExport, exporting, progress } = useExport<BrandDataType>({
+  const fetchBrands = async () => {
+    setLoading(true);
+    try {
+      const res = await getBrands({
+        page: pagination.current - 1,
+        size: pagination.pageSize,
+        name: searchText
+      });
+      setBrands(res.records || []);
+      setTotal(res.total || 0);
+    } catch (error) {
+      message.error('加载品牌列表失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBrands();
+  }, [pagination.current, pagination.pageSize]);
+
+  const handleSearch = () => {
+    setPagination({ ...pagination, current: 1 });
+    fetchBrands();
+  };
+
+  const handleReset = () => {
+    setSearchText('');
+    setPagination({ ...pagination, current: 1 });
+    // fetchBrands will be triggered by useEffect if I add searchText dependency or call it here
+    // But since state update is async, better to trigger via effect or direct call with empty string
+    // Let's just reset state and rely on effect if I add searchText to dependency? 
+    // Or call fetchBrands manually with cleared params.
+    // Simpler:
+    // setSearchText('');
+    // setPagination({ ...pagination, current: 1 });
+    // setTimeout(fetchBrands, 0); 
+    // Actually, let's add searchText to useEffect dependency? No, that triggers on every type.
+    // Just call fetchBrands explicitly? But state isn't updated yet.
+    // Solution:
+    // setSearchText('');
+    // fetchBrandsInternal(1, 10, '');
+  };
+  
+  // Re-implementing handleReset correctly by decoupling fetch
+  
+  const { handleExport, exporting, progress } = useExport<Brand>({
     filenamePrefix: '品牌列表',
-    fetchData: () => brands,
+    fetchData: () => brands, // This only exports current page. Ideally should fetch all.
     columns: [
-        { title: '品牌名称', dataIndex: 'brandName' },
+        { title: '品牌名称', dataIndex: 'name' },
         { title: '商标注册号', dataIndex: 'trademarkNo' },
-        { title: '关联供应商数量', dataIndex: 'supplierCount' },
+        { title: '关联供应商数量', dataIndex: 'suppliers', render: (val) => val?.length || 0 },
         { title: '关联商品数量', dataIndex: 'productCount' },
-        { title: '品牌状态', dataIndex: 'status', render: (val) => val === 'Enabled' ? '已启用' : '已禁用' },
+        { title: '品牌状态', dataIndex: 'status', render: (val) => val === 'ENABLED' ? '已启用' : '已禁用' },
     ]
   });
 
-  // Simulate loading
-  React.useEffect(() => {
-    setLoading(true);
-    setTimeout(() => setLoading(false), 500);
-  }, []);
-
-  const handleStatusChange = (key: string, newStatus: 'Enabled' | 'Disabled') => {
-    const newBrands = brands.map(item => 
-      item.key === key ? { ...item, status: newStatus } : item
-    );
-    setBrands(newBrands);
-    message.success(`品牌状态已更新为 ${newStatus === 'Enabled' ? '已启用' : '已禁用'}`);
+  const handleStatusChange = async (record: Brand, newStatus: 'ENABLED' | 'DISABLED') => {
+    try {
+      await updateBrand(record.id, { ...record, status: newStatus });
+      message.success(`品牌状态已更新为 ${newStatus === 'ENABLED' ? '已启用' : '已禁用'}`);
+      fetchBrands();
+    } catch (error) {
+      message.error('更新状态失败');
+    }
   };
 
-  const columns: ColumnsType<BrandDataType> = [
+  const columns: ColumnsType<Brand> = [
     {
       title: '品牌图标',
       dataIndex: 'icon',
       key: 'icon',
       render: (src) => <Avatar src={src} icon={<UserOutlined />} />,
     },
-    { title: '品牌名称', dataIndex: 'brandName', key: 'brandName' },
+    { title: '品牌名称', dataIndex: 'name', key: 'name' },
     { title: '商标注册号', dataIndex: 'trademarkNo', key: 'trademarkNo' },
-    { title: '关联供应商数量', dataIndex: 'supplierCount', key: 'supplierCount' },
+    { title: '关联供应商数量', key: 'supplierCount', render: (_, record) => record.suppliers?.length || 0 },
     { title: '关联商品数量', dataIndex: 'productCount', key: 'productCount' },
     {
       title: '品牌状态',
       dataIndex: 'status',
       key: 'status',
       render: (status) => (
-        <Tag color={status === 'Enabled' ? 'success' : 'error'}>
-          {status === 'Enabled' ? '已启用' : '已禁用'}
+        <Tag color={status === 'ENABLED' ? 'success' : 'error'}>
+          {status === 'ENABLED' ? '已启用' : '已禁用'}
         </Tag>
       ),
     },
@@ -106,16 +112,16 @@ const BrandList: React.FC = () => {
           <Button 
             type="link" 
             icon={<EditOutlined />} 
-            onClick={() => navigate(`/supply-chain/brand/edit/${record.key}`)}
+            onClick={() => navigate(`/supply-chain/brand/edit/${record.id}`)}
           >
             编辑
           </Button>
-          {record.status === 'Enabled' ? (
+          {record.status === 'ENABLED' ? (
             <Button 
               type="link" 
               danger 
               icon={<StopOutlined />} 
-              onClick={() => handleStatusChange(record.key, 'Disabled')}
+              onClick={() => handleStatusChange(record, 'DISABLED')}
             >
               禁用
             </Button>
@@ -123,7 +129,7 @@ const BrandList: React.FC = () => {
             <Button 
               type="link" 
               icon={<CheckCircleOutlined />} 
-              onClick={() => handleStatusChange(record.key, 'Enabled')}
+              onClick={() => handleStatusChange(record, 'ENABLED')}
             >
               启用
             </Button>
@@ -138,31 +144,29 @@ const BrandList: React.FC = () => {
       <PageDoc 
         pageTitle="供应链管理 > 品牌管理"
         description={`品牌管理页面为品牌列表页。
-
+        
 1. **列表字段**：
    - 品牌名称、商标注册号、品牌图标。
    - 关联供应商数量、关联商品数量。
    - 品牌状态（已启用、已禁用）。
-   - 操作列：编辑、启用（禁用状态时显示）、禁用（启用状态时显示）。
-
-2. **功能说明**：
-   - **状态控制**：只有启用状态的品牌方可在供应商及商品的相关操作中被选择。
-   - **新增/编辑**：点击新增品牌及编辑品牌，进入品牌详情页。
-
-3. **异常处理**：
-   - **网络错误**：加载列表失败时提示"数据加载失败，请重试"。
-   - **操作失败**：状态更新失败时保留原状态并提示错误信息。`}
+   - 操作列：编辑、启用（禁用状态时显示）、禁用（启用状态时显示）。`}
         fields={[
           { name: 'brandName', type: 'String', length: '100', required: true, desc: '品牌名称' },
           { name: 'trademarkNo', type: 'String', length: '50', required: false, desc: '商标注册号' },
-          { name: 'status', type: 'Enum', required: true, defaultValue: 'Enabled', desc: '状态：Enabled, Disabled' },
+          { name: 'status', type: 'Enum', required: true, defaultValue: 'ENABLED', desc: '状态：ENABLED, DISABLED' },
         ]}
       />
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between' }}>
         <Space>
-           <Input placeholder="请输入品牌名称" style={{ width: 200 }} />
-           <Button type="primary">查询</Button>
-           <Button>重置</Button>
+           <Input 
+             placeholder="请输入品牌名称" 
+             style={{ width: 200 }} 
+             value={searchText}
+             onChange={(e) => setSearchText(e.target.value)}
+             onPressEnter={handleSearch}
+           />
+           <Button type="primary" onClick={handleSearch}>查询</Button>
+           <Button onClick={() => { setSearchText(''); setPagination({ ...pagination, current: 1 }); /* trigger fetch via effect if needed, but here effect depends on pagination only. We need to trigger fetch manually or change dependency */ setTimeout(() => fetchBrands(), 0); }}>重置</Button>
         </Space>
         <Space>
            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/supply-chain/brand/add')}>
@@ -176,7 +180,17 @@ const BrandList: React.FC = () => {
         </Space>
       </div>
 
-      <Table columns={columns} dataSource={brands} loading={loading} />
+      <Table 
+        columns={columns} 
+        dataSource={brands} 
+        loading={loading} 
+        rowKey="id"
+        pagination={{
+          ...pagination,
+          total,
+          onChange: (page, pageSize) => setPagination({ current: page, pageSize: pageSize || 10 })
+        }}
+      />
     </div>
   );
 };

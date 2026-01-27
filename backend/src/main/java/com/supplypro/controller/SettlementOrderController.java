@@ -6,6 +6,8 @@ import com.supplypro.entity.OutboundOrder;
 import com.supplypro.repository.PurchaseOrderRepository;
 import com.supplypro.repository.SettlementOrderRepository;
 import com.supplypro.repository.OutboundOrderRepository;
+import com.supplypro.service.SettlementService;
+import com.supplypro.common.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -31,6 +34,9 @@ public class SettlementOrderController {
 
     @Autowired
     private OutboundOrderRepository outboundOrderRepository;
+
+    @Autowired
+    private SettlementService settlementService;
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> getAll(
@@ -56,6 +62,25 @@ public class SettlementOrderController {
         ));
         
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/generate")
+    public ApiResponse<SettlementOrder> generate(@RequestBody Map<String, Object> payload) {
+        Long supplierId = Long.valueOf(payload.get("supplierId").toString());
+        List<Integer> orderIdsInt = (List<Integer>) payload.get("orderIds");
+        List<Long> orderIds = orderIdsInt.stream().map(Long::valueOf).collect(java.util.stream.Collectors.toList());
+        String createdBy = "admin"; // TODO: get user
+        
+        return ApiResponse.success(settlementService.createSettlement(supplierId, orderIds, createdBy));
+    }
+
+    @PostMapping("/{id}/pay")
+    public ApiResponse<?> pay(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        String method = (String) payload.get("paymentMethod");
+        String proof = (String) payload.get("paymentProof");
+        String operator = "admin";
+        settlementService.paySettlement(id, method, proof, operator);
+        return ApiResponse.success("Paid successfully", null);
     }
 
     @PostMapping

@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Form, Input, Button, Card, Space, Table, Breadcrumb, message, Upload, Modal, Select } from 'antd';
 import { PlusOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import PageDoc from '../../components/PageDoc';
+import { getBrandById, createBrand, updateBrand } from '../../services/brandService';
+import { getSuppliers, SupplierDTO } from '../../services/supplierService';
 
 const BrandDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -11,49 +13,77 @@ const BrandDetail: React.FC = () => {
   
   // State for supplier selection modal
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(null);
 
-  // Mock Data Loading
-  React.useEffect(() => {
+  // Data states
+  const [loading, setLoading] = useState(false);
+  const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]); // Selected suppliers
+  const [allSuppliers, setAllSuppliers] = useState<SupplierDTO[]>([]); // All available suppliers for selection
+
+  // Load all suppliers for selection (mocking "Enabled" filter by frontend)
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        // Fetch a large page to get most suppliers
+        const res = await getSuppliers({ size: 1000 });
+        // Filter only ACTIVE suppliers
+        const activeSuppliers = (res.content || []).filter(s => s.status === 'ACTIVE');
+        setAllSuppliers(activeSuppliers);
+      } catch (error) {
+        message.error('加载供应商列表失败');
+      }
+    };
+    fetchSuppliers();
+  }, []);
+
+  // Load Brand Data
+  useEffect(() => {
     if (id) {
-      // Mock fetch brand data
-      const mockBrand = {
-        brandName: '晨光文具',
-        trademarkNo: 'TM2023001',
-        icon: 'https://example.com/icon.png',
-      };
-      // Simulate API call
-      setTimeout(() => {
-        try {
-           form.setFieldsValue(mockBrand);
-           // In a real app, we would also fetch the associated suppliers here
-           // setSuppliers(fetchedSuppliers);
-        } catch (error) {
+      setLoading(true);
+      getBrandById(Number(id))
+        .then(data => {
+           form.setFieldsValue(data);
+           // Backend returns suppliers in the brand object
+           setSuppliers(data.suppliers || []);
+        })
+        .catch(() => {
            message.error('加载品牌信息失败');
-        }
-      }, 500);
+        })
+        .finally(() => {
+           setLoading(false);
+        });
     }
   }, [id, form]);
 
-  // Mock enabled suppliers (database source)
-  const mockEnabledSuppliers = [
-    { id: 'SUP002', name: '齐心办公用品有限公司', contact: '李经理', phone: '13900000000', email: 'li@qixin.com', address: '深圳市福田区' },
-    { id: 'SUP003', name: '得力集团有限公司', contact: '王经理', phone: '13700000000', email: 'wang@deli.com', address: '宁波市宁海县' },
-  ];
-  
-  // Mock suppliers for the brand
-  const [suppliers, setSuppliers] = useState([
-     { key: 1, name: '晨光文具销售有限公司', id: 'SUP001', contact: '张经理', phone: '13800000000', email: 'zhang@chenguang.com', address: '上海市奉贤区金钱公路' }
-  ]);
+  const onFinish = async (values: any) => {
+    setLoading(true);
+    try {
+      // Construct payload with suppliers
+      // We send the full supplier objects or just IDs wrapped in objects.
+      // BrandController expects Brand entity structure.
+      // Ideally we should send { ...values, suppliers: [{id: 1}, {id: 2}] }
+      const payload = {
+        ...values,
+        suppliers: suppliers.map(s => ({ id: s.id }))
+      };
 
-  const onFinish = (values: any) => {
-    console.log('Success:', values);
-    message.success('品牌信息保存成功');
-    navigate('/supply-chain/brand');
+      if (id) {
+        await updateBrand(Number(id), payload);
+        message.success('品牌信息更新成功');
+      } else {
+        await createBrand(payload);
+        message.success('品牌创建成功');
+      }
+      navigate('/supply-chain/brand');
+    } catch (error) {
+      message.error('提交失败，请重试');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteSupplier = (key: number) => {
-     setSuppliers(suppliers.filter(item => item.key !== key));
+  const handleDeleteSupplier = (supplierId: number) => {
+     setSuppliers(suppliers.filter(item => item.id !== supplierId));
   };
 
   const handleAddSupplier = () => {
@@ -73,9 +103,9 @@ const BrandDetail: React.FC = () => {
       return;
     }
 
-    const supplier = mockEnabledSuppliers.find(s => s.id === selectedSupplierId);
+    const supplier = allSuppliers.find(s => s.id === selectedSupplierId);
     if (supplier) {
-      setSuppliers([...suppliers, { ...supplier, key: Date.now() }]);
+      setSuppliers([...suppliers, supplier]);
       message.success('添加关联供应商成功');
       setIsSupplierModalOpen(false);
     }
@@ -105,7 +135,7 @@ const BrandDetail: React.FC = () => {
    - **提交**：提交品牌信息及关联供应商列表并返回品牌列表。
    - **取消**：返回品牌列表页不保存任何操作。
 
-5. **异常处理**：
+6. **异常处理**：
    - 必填校验：品牌名称为空时提示"请输入品牌名称"。
    - 网络异常：提交失败时弹出错误提示。`}
         fields={[
@@ -122,7 +152,7 @@ const BrandDetail: React.FC = () => {
       
       <Form form={form} layout="vertical" onFinish={onFinish}>
         <Card title="品牌基本信息" bordered={false} style={{ marginBottom: 24 }}>
-           <Form.Item name="brandName" label="品牌名称" rules={[{ required: true, message: '请输入品牌名称' }]}>
+           <Form.Item name="name" label="品牌名称" rules={[{ required: true, message: '请输入品牌名称' }]}>
               <Input placeholder="请输入品牌名称" />
            </Form.Item>
            <Form.Item name="trademarkNo" label="商标注册号">
@@ -139,17 +169,18 @@ const BrandDetail: React.FC = () => {
            <Table
               dataSource={suppliers}
               pagination={false}
+              rowKey="id"
               columns={[
                  { title: '供应商名称', dataIndex: 'name' },
-                 { title: '供应商ID', dataIndex: 'id' },
-                 { title: '联系人', dataIndex: 'contact' },
-                 { title: '手机号', dataIndex: 'phone' },
+                 { title: '供应商ID', dataIndex: 'id' }, // Display ID, but user might expect code/no
+                 { title: '联系人', dataIndex: 'contactPerson' },
+                 { title: '手机号', dataIndex: 'contactPhone' },
                  { title: '邮箱', dataIndex: 'email' },
                  { title: '地址', dataIndex: 'address' },
                  {
                     title: '操作',
                     render: (_, record) => (
-                       <Button type="text" danger icon={<DeleteOutlined />} onClick={() => handleDeleteSupplier(record.key)} />
+                       <Button type="text" danger icon={<DeleteOutlined />} onClick={() => handleDeleteSupplier(record.id)} />
                     )
                  }
               ]}
@@ -162,7 +193,7 @@ const BrandDetail: React.FC = () => {
         <div style={{ textAlign: 'center', paddingBottom: 24 }}>
            <Space size="large">
               <Button onClick={() => navigate('/supply-chain/brand')}>取消</Button>
-              <Button type="primary" htmlType="submit">提交</Button>
+              <Button type="primary" htmlType="submit" loading={loading}>提交</Button>
            </Space>
         </div>
       </Form>
@@ -179,11 +210,11 @@ const BrandDetail: React.FC = () => {
               showSearch
               placeholder="请输入供应商名称搜索"
               optionFilterProp="children"
-              onChange={(value: string) => setSelectedSupplierId(value)}
+              onChange={(value: number) => setSelectedSupplierId(value)}
               filterOption={(input: string, option: any) =>
                 (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
               }
-              options={mockEnabledSuppliers.map(s => ({ value: s.id, label: s.name }))}
+              options={allSuppliers.map(s => ({ value: s.id, label: s.name }))}
             />
           </Form.Item>
         </Form>

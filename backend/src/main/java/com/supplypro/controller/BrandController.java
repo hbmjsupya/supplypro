@@ -80,6 +80,11 @@ public class BrandController {
                     existing.setTrademarkNo(brand.getTrademarkNo());
                     existing.setIcon(brand.getIcon());
                     existing.setStatus(brand.getStatus());
+                    
+                    if (brand.getSuppliers() != null) {
+                        existing.setSuppliers(brand.getSuppliers());
+                    }
+                    
                     Brand saved = brandRepository.save(existing);
                     Map<String, Object> response = new HashMap<>();
                     response.put("code", 200);

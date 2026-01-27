@@ -24,6 +24,9 @@ public class SettlementOrder {
     @Column(nullable = false)
     private Type type;
 
+    @Column(name = "related_order_no")
+    private String relatedOrderNo;
+
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
 
@@ -53,6 +56,6 @@ public class SettlementOrder {
     }
 
     public enum Status {
-        PENDING, APPROVED, PAID, COMPLETED
+        PENDING, APPROVED, PAID, SETTLED, COMPLETED
     }
 }
