@@ -12,9 +12,10 @@ const Login: React.FC = () => {
     setLoading(true);
     try {
       const response: any = await login(values);
-      // Backend returns: { accessToken, id, username, email, roles }
-      if (response.accessToken) {
-        localStorage.setItem('token', response.accessToken);
+      // Backend returns: ApiResponse.data which is JwtResponse { token, id, username, email, roles }
+      // request.ts interceptor unwraps ApiResponse and returns response.data
+      if (response.token) {
+        localStorage.setItem('token', response.token);
         localStorage.setItem('user', JSON.stringify(response));
         message.success('Login successful');
         navigate('/');
@@ -23,7 +24,7 @@ const Login: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      // Error is handled by request interceptor, but we can double check
+      message.error('登录失败，请检查用户名和密码');
     } finally {
       setLoading(false);
     }
@@ -62,7 +63,7 @@ const Login: React.FC = () => {
             </Button>
           </Form.Item>
           <div style={{textAlign: 'center', color: '#888'}}>
-            Default: admin / password
+            Default: admin / 123456
           </div>
         </Form>
       </Card>

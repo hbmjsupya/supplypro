@@ -7,9 +7,43 @@ services:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: supplypro
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - db_data:/var/lib/mysql
+    networks:
+      - supplypro-net
+
+  redis:
+    image: redis:6.2-alpine
+    container_name: supplypro-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - supplypro-net
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: supplypro-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - supplypro-net
+
+  elasticsearch:
+    image: elasticsearch:7.17.10
+    container_name: supplypro-es
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
     networks:
       - supplypro-net
 
@@ -17,12 +51,17 @@ services:
     build: ./backend
     container_name: supplypro-backend
     ports:
-      - "8080:8080"
+      - "8081:8080"
+    volumes:
+      - ./uploads:/app/uploads
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://supplypro-db:3306/supplypro?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: password
       SPRING_PROFILES_ACTIVE: prod
+      SPRING_REDIS_HOST: supplypro-redis
+      SPRING_ELASTICSEARCH_URIS: http://supplypro-es:9200
+      SPRING_RABBITMQ_HOST: supplypro-rabbitmq
     depends_on:
       - supplypro-db
     networks:
@@ -44,3 +83,4 @@ networks:
 
 volumes:
   db_data:
+  es_data:

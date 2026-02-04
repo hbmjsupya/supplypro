@@ -2,7 +2,30 @@
 
 ## 本地开发环境部署
 
-### 1. 环境准备
+### 0. 快速上手 (JDK 17)
+项目已迁移至 JDK 17。为确保环境一致性，请优先使用以下脚本：
+
+1.  **激活环境** (在当前终端生效):
+    ```bash
+    source setup_env.sh
+    ```
+    验证: `java -version` 应显示 JDK 17。
+
+2.  **构建与测试**:
+    ```bash
+    ./mvn_build.sh
+    ```
+
+3.  **启动后端**:
+    ```bash
+    # 模式 A: 使用内置 H2 数据库 (推荐用于快速验证)
+    java -jar backend/target/supplypro-backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=local
+
+    # 模式 B: 连接 Docker MySQL (需先启动数据库容器)
+    java -jar backend/target/supplypro-backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev
+    ```
+
+### 1. Docker 环境准备
 确保已安装 Docker 和 Docker Compose。
 
 ### 2. 构建与启动
@@ -51,6 +74,23 @@ docker-compose down -v
 ### 3. 结算管理
 - **供应商结算**：访问 `/supply-chain/settlement/supplier`，测试结算单生成、审批流程及状态更新。
 - **物流费用**：访问 `/supply-chain/settlement/delivery`，测试物流费用结算。
+
+### 4. 文件管理 (新)
+- **功能验证**: 供应商资质图片与合同文件的上传、下载、版本管理、回收站功能。
+- **自动化测试**:
+  运行项目根目录下的测试脚本进行全生命周期验证：
+  ```bash
+  ./tools/test_file_lifecycle.sh
+  ```
+  该脚本将自动执行以下测试步骤：
+  1. 上传文件 (PDF/图片)
+  2. 获取文件列表
+  3. 编辑文件元数据
+  4. 更新文件版本
+  5. 移入回收站 (逻辑删除)
+  6. 从回收站还原
+  7. 彻底删除
+  8. 安全下载验证 (带Token校验)
 
 ## 生产环境部署建议
 

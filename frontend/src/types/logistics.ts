@@ -1,6 +1,7 @@
 export interface LogisticsAccount {
   key: number;
-  type: 'Company' | 'Personal';
+  id?: number;
+  type: 'Company' | 'Personal' | 'COMPANY' | 'PERSONAL';
   name: string;
   bank: string;
   account: string;
@@ -11,13 +12,20 @@ export interface LogisticsAccount {
 export interface LogisticsProvider {
   id: string;
   name: string;
-  contactName: string;
+  contactPerson: string;
   contactPhone: string;
-  status: 'enabled' | 'disabled';
-  settlementType: 'Cash' | 'Period';
-  settlementCycle?: 'Daily' | 'Weekly' | 'Monthly';
+  status: string;
+  settlementType: string;
+  settlementPeriod?: number;
+  settlementCycle?: string;
+  purchaserId?: number;
+  purchaserName?: string;
+  procurementOwner?: string;
   accounts: LogisticsAccount[];
-  createTime: string;
+  createdAt?: string;
+  updatedAt?: string;
+  prepaymentWarning?: number;
+  prepaymentBalance?: number;
 }
 
 export interface LogisticsTrack {

@@ -14,6 +14,7 @@ import {
   UploadOutlined,
   BarChartOutlined
 } from '@ant-design/icons';
+import { logout, getCurrentUser } from '../services/authService';
 
 const { Header, Sider, Content } = Layout;
 
@@ -24,6 +25,13 @@ const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const user = getCurrentUser();
+
+  const handleMenuClick = ({ key }: { key: string }) => {
+    if (key === 'logout') {
+      logout();
+    }
+  };
 
   const menuItems = [
     {

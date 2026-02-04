@@ -8,7 +8,7 @@ spring:
   application:
     name: supplypro-backend
   datasource:
-    url: jdbc:mysql://supplypro-db:3306/supplypro?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8
+    url: jdbc:mysql://localhost:3307/supplypro?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8
     username: root
     password: password
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -19,6 +19,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        default_batch_fetch_size: 100
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -27,6 +28,34 @@ spring:
       mode: never
       schema-locations: classpath:db/migration/V1.0__init_schema.sql
       # data-locations: classpath:db/migration/V1.1__init_data.sql
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000
+
+resilience4j:
+  retry:
+    instances:
+      taxApi:
+        maxAttempts: 3
+        waitDuration: 2s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+  circuitbreaker:
+    instances:
+      taxApi:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30m
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml
@@ -38,3 +67,7 @@ supplypro:
   app:
     jwtSecret: supplyproSecretKeyForJwtAuthenticationSupplyProSecretKeyForJwtAuthentication
     jwtExpirationMs: 86400000
+
+file:
+  upload-dir: uploads
+  allowed-types: jpg,jpeg,png,pdf,doc,docx,xls,xlsx

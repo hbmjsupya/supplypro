@@ -1,5 +1,6 @@
 package com.supplypro.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import javax.persistence.*;
 import java.math.BigDecimal;
@@ -31,6 +32,43 @@ public class Supplier {
     @Column(name = "address")
     private String address;
 
+    @Column(name = "org_code", length = 18)
+    private String orgCode;
+
+    @Column(name = "qualification_file", columnDefinition = "TEXT")
+    @Convert(converter = com.supplypro.converter.StringListConverter.class)
+    private java.util.List<String> qualificationFile;
+
+    @Column(name = "contract_file", columnDefinition = "TEXT")
+    @Convert(converter = com.supplypro.converter.StringListConverter.class)
+    private java.util.List<String> contractFile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "purchaser_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private User purchaser;
+
+    @Column(name = "coop_start_time")
+    private LocalDateTime coopStartTime;
+
+    @Column(name = "coop_end_time")
+    private LocalDateTime coopEndTime;
+
+    @Column(name = "province_code")
+    private String provinceCode;
+
+    @Column(name = "city_code")
+    private String cityCode;
+
+    @Column(name = "district_code")
+    private String districtCode;
+
+    @Column(name = "receiver_name")
+    private String receiverName;
+
+    @Column(name = "receiver_phone")
+    private String receiverPhone;
+
     @Column(name = "settlement_type", nullable = false)
     @Enumerated(EnumType.STRING)
     private SettlementType settlementType;
@@ -41,9 +79,18 @@ public class Supplier {
     @Column(name = "prepayment_balance")
     private BigDecimal prepaymentBalance;
 
+    @Column(name = "prepayment_warning")
+    private BigDecimal prepaymentWarning;
+
     @Column(name = "status")
     @Enumerated(EnumType.STRING)
     private Status status;
+
+    @ManyToMany(mappedBy = "suppliers")
+    @lombok.ToString.Exclude
+    @lombok.EqualsAndHashCode.Exclude
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private java.util.Set<Brand> brands = new java.util.HashSet<>();
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;

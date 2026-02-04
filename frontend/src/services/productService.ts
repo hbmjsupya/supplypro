@@ -7,7 +7,6 @@ export interface Product {
   brand?: string;
   category?: string;
   spec?: string;
-  costPrice: number;
   taxClass?: string;
   taxRate?: number;
   taxCode?: string;
@@ -53,5 +52,9 @@ export const productService = {
 
   updateBundleItems: (id: number, items: ProductBundleItem[]) => {
     return request.post(`/products/${id}/bundle`, items);
+  },
+
+  updateStatus: (id: number, status: Product['status']) => {
+    return request.patch(`/products/${id}/status`, null, { params: { status } });
   }
 };

@@ -121,7 +121,7 @@ const WarehouseProductList: React.FC = () => {
             { title: '分仓商品列表' }
         ]} />
 
-        <Card bordered={false}>
+        <Card variant="borderless">
             <Form layout="inline" style={{ marginBottom: 16 }}>
                 <Form.Item label="仓库">
                     <Select 

@@ -66,6 +66,13 @@ public class SecurityConfig {
             .authorizeRequests()
             .antMatchers("/api/auth/**").permitAll()
             .antMatchers("/api/test/**").permitAll()
+            // .antMatchers("/uploads/**").permitAll() // Disable static access to uploads
+            // .antMatchers("/api/files/download/**").permitAll()
+            // .antMatchers("/api/supplier-files/**").permitAll() // Require auth for file management
+            .antMatchers("/api/suppliers/**").permitAll()
+            .antMatchers("/api/product-categories/**").permitAll()
+            .antMatchers("/api/tax-categories/**").permitAll()
+            .antMatchers("/api/brands/**").permitAll()
             // Allow Swagger UI
             .antMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
             .anyRequest().authenticated();
@@ -81,7 +88,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(Collections.singletonList("*"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

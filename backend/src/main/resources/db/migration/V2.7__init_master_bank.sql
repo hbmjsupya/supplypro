@@ -1,0 +1,35 @@
+CREATE TABLE `master_bank` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `bank_code` varchar(50) NOT NULL COMMENT 'Bank Code',
+  `bank_name` varchar(100) NOT NULL COMMENT 'Bank Name',
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_bank_code` (`bank_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Master Bank Information';
+
+INSERT INTO `master_bank` (`bank_code`, `bank_name`) VALUES
+('ICBC', '中国工商银行'),
+('ABC', '中国农业银行'),
+('BOC', '中国银行'),
+('CCB', '中国建设银行'),
+('BOCOM', '交通银行'),
+('PSBC', '中国邮政储蓄银行'),
+('CMB', '招商银行'),
+('SPDB', '上海浦东发展银行'),
+('CIB', '兴业银行'),
+('HXB', '华夏银行'),
+('CMBC', '中国民生银行'),
+('CEB', '中国光大银行'),
+('PAB', '平安银行'),
+('GDB', '广发银行'),
+('JSB', '江苏银行'),
+('BOB', '北京银行'),
+('NBCB', '宁波银行'),
+('SHB', '上海银行'),
+('NJCB', '南京银行'),
+('HZB', '杭州银行'),
+('HSBC', '汇丰银行'),
+('SCB', '渣打银行'),
+('BEA', '东亚银行'),
+('CITI', '花旗银行');

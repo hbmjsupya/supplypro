@@ -100,7 +100,7 @@ const SupplierPrepaymentLog: React.FC<Props> = ({ supplierId }) => {
     <Card 
       title="预付款账户" 
       extra={<Button type="primary" onClick={() => setIsModalVisible(true)}>充值</Button>}
-      bordered={false}
+      variant="borderless"
       style={{ marginTop: 24 }}
     >
       <Table 

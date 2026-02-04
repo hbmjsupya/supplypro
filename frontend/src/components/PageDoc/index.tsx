@@ -71,7 +71,7 @@ const PageDoc: React.FC<PageDocProps> = ({
           <Title level={4}>{pageTitle}</Title>
           <Paragraph style={{ whiteSpace: 'pre-wrap' }}>{description}</Paragraph>
           {manual && (
-            <Card title="操作指引" size="small" bordered={false} style={{ background: '#f5f5f5', marginTop: 16 }}>
+            <Card title="操作指引" size="small" variant="borderless" style={{ background: '#f5f5f5', marginTop: 16 }}>
               {manual}
             </Card>
           )}

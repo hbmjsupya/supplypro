@@ -731,7 +731,7 @@ const PlatformConfirmList: React.FC = () => {
             ]}
         />
         
-        <Card bordered={false}>
+        <Card variant="borderless">
             {/* Search Form (Simplified) */}
             <Form layout="inline" style={{ marginBottom: 16 }}>
                 <Form.Item label="单号"><Input placeholder="平台单号/业务单号" /></Form.Item>

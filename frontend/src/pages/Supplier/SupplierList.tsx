@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Input, Select, Space, Tag, message, Row, Col, Form, Tooltip, Dropdown } from 'antd';
+import { Table, Button, Input, Select, Space, Tag, message, Row, Col, Form, Tooltip, Dropdown, Modal } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { PlusOutlined, EditOutlined, StopOutlined, CheckCircleOutlined, EyeOutlined, ExportOutlined, AccountBookOutlined, DownOutlined, BankOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { PlusOutlined, EditOutlined, StopOutlined, CheckCircleOutlined, EyeOutlined, ExportOutlined, AccountBookOutlined, DownOutlined, BankOutlined, DeleteOutlined, WarningOutlined } from '@ant-design/icons';
+import { useNavigate, useLocation } from 'react-router-dom';
 import PageDoc from '../../components/PageDoc';
 import { useExport } from '../../utils/exportUtils';
-import { getSuppliers, SupplierDTO } from '../../services/supplierService';
+import { getSuppliers, SupplierDTO, deleteAllSuppliers } from '../../services/supplierService';
+import request from '../../utils/request';
 
 interface SupplierDataType {
   key: string;
@@ -20,32 +21,68 @@ interface SupplierDataType {
   coopEndTime: string;
   settlementType?: 'Cash' | 'Prepayment' | 'Period';
   settlementCycle?: string;
+  orgCode?: string;
+  purchaserId?: number;
 }
 
 const SupplierList: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [showExpiring, setShowExpiring] = useState(false);
   const [suppliers, setSuppliers] = useState<SupplierDataType[]>([]);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [userOptions, setUserOptions] = useState<{label: string, value: number}[]>([]);
+
+  // Fetch users for purchaser filter
+  useEffect(() => {
+    const fetchUsers = async () => {
+        try {
+            const res: any = await request.get('/users/list');
+            if (res && res.content) {
+                setUserOptions(res.content.map((u: any) => ({ label: u.username, value: u.id })));
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+    fetchUsers();
+  }, []);
 
   const fetchSuppliers = async (page = 1, size = 10) => {
     setLoading(true);
     try {
-      const res = await getSuppliers({ page: page - 1, size });
+      const values = form.getFieldsValue();
+      const res = await getSuppliers({ 
+        page: page - 1, 
+        size,
+        name: values.supplierName,
+        settlementType: values.settlementType,
+        settlementPeriod: values.settlementPeriod,
+        purchaserId: values.purchaserId,
+        contactInfo: values.contactInfo,
+        expiringSoon: showExpiring
+      });
       const mappedData: SupplierDataType[] = res.content.map((item: SupplierDTO) => ({
         key: item.id.toString(),
         supplierName: item.name,
         supplierId: item.supplierNo,
         contact: item.contactPerson,
-        brands: [], // Backend doesn't return brands yet
+        brands: item.brandNames || [],
         contactInfo: `${item.contactPhone || ''} / ${item.address || ''}`,
-        purchaserInfo: '-', // Backend doesn't have this yet
+        purchaserInfo: item.purchaserName || '-',
         status: item.status === 'ACTIVE' ? 'Enabled' : 'Disabled',
         createTime: item.createdAt,
-        coopEndTime: '-', // Backend doesn't have this
+        coopEndTime: item.coopEndTime ? item.coopEndTime.substring(0, 10) : '-',
         settlementType: item.settlementType === 'PREPAYMENT' ? 'Prepayment' : item.settlementType === 'CASH' ? 'Cash' : 'Period',
-        settlementCycle: item.settlementPeriod ? `${item.settlementPeriod} Days` : '-',
+        settlementCycle: item.settlementPeriod === 1 ? 'Daily' :
+                         item.settlementPeriod === 7 ? 'Weekly' :
+                         item.settlementPeriod === 30 ? 'Monthly' : 
+                         item.settlementPeriod === 90 ? 'Quarterly' :
+                         item.settlementPeriod ? `${item.settlementPeriod} Days` : '-',
+        orgCode: item.orgCode,
+        purchaserId: item.purchaserId
       }));
       setSuppliers(mappedData);
       setPagination({ ...pagination, current: page, total: res.totalElements });
@@ -58,7 +95,7 @@ const SupplierList: React.FC = () => {
 
   useEffect(() => {
     fetchSuppliers(pagination.current, pagination.pageSize);
-  }, [pagination.current, pagination.pageSize]);
+  }, [pagination.current, pagination.pageSize, location.key, showExpiring]);
 
   const handleStatusChange = (key: string, newStatus: 'Enabled' | 'Disabled') => {
     // TODO: Call backend API to update status
@@ -69,15 +106,27 @@ const SupplierList: React.FC = () => {
     message.success(`供应商状态已更新为 ${newStatus === 'Enabled' ? '已启用' : '已禁用'}`);
   };
 
-  const filteredData = showExpiring 
-    ? suppliers.filter(s => {
-        const endDate = new Date(s.coopEndTime);
-        const today = new Date('2026-01-06'); // Mock today
-        const diffTime = endDate.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays <= 30 && diffDays >= 0; 
-      })
-    : suppliers;
+  const handleDeleteAll = () => {
+      Modal.confirm({
+          title: '确认清空数据',
+          content: '确定要删除所有供应商数据吗？此操作不可恢复！',
+          okText: '确认删除',
+          okType: 'danger',
+          cancelText: '取消',
+          onOk: async () => {
+              try {
+                  await deleteAllSuppliers();
+                  message.success('所有供应商数据已清空');
+                  fetchSuppliers(1, pagination.pageSize);
+              } catch (e) {
+                  message.error('清空数据失败');
+              }
+          }
+      });
+  };
+
+  // Filtered data is now handled by backend via showExpiring state triggering fetch
+  const filteredData = suppliers;
 
   const { handleExport, exporting, progress } = useExport<SupplierDataType>({
     filenamePrefix: '供应商列表',
@@ -111,7 +160,7 @@ const SupplierList: React.FC = () => {
       key: 'brands',
       render: (brands: string[]) => (
         <Space wrap>
-          {brands.map((b) => <Tag key={b}>{b}</Tag>)}
+          {brands && brands.map((b) => <Tag key={b}>{b}</Tag>)}
         </Space>
       ),
     },
@@ -139,6 +188,7 @@ const SupplierList: React.FC = () => {
         const cycleMap: Record<string, string> = {
            'Monthly': '月结',
            'Weekly': '周结',
+           'Quarterly': '季结',
            'Daily': '日结'
         };
         return cycleMap[text] || text || '-';
@@ -155,7 +205,22 @@ const SupplierList: React.FC = () => {
         </Tag>
       ),
     },
-    { title: '合作截止时间', dataIndex: 'coopEndTime', key: 'coopEndTime', width: 120 },
+    { 
+        title: '合作截止时间', 
+        dataIndex: 'coopEndTime', 
+        key: 'coopEndTime', 
+        width: 120,
+        render: (text) => {
+             // Check if expiring soon logic needed for display
+             if (text === '-') return text;
+             const endDate = new Date(text);
+             const today = new Date();
+             const diffTime = endDate.getTime() - today.getTime();
+             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+             const isExpiring = diffDays <= 30 && diffDays >= 0;
+             return isExpiring ? <Tag color="error" icon={<WarningOutlined />}>{text} (临期)</Tag> : text;
+        }
+    },
     {
       title: '操作',
       key: 'action',
@@ -246,31 +311,49 @@ const SupplierList: React.FC = () => {
           { name: 'phone', type: 'String', length: '20', required: true, unique: false, desc: '联系电话' },
         ]}
       />
-      <Form layout="inline" style={{ marginBottom: 24 }}>
+      <Form form={form} layout="inline" style={{ marginBottom: 24 }} onFinish={() => fetchSuppliers(1, pagination.pageSize)}>
          <Row gutter={[16, 16]}>
            <Col>
-             <Form.Item label="供应商名称">
-                <Input placeholder="请输入" />
+             <Form.Item name="supplierName" label="供应商名称">
+                <Input placeholder="请输入" style={{ width: 150 }} />
              </Form.Item>
            </Col>
            <Col>
-             <Form.Item label="品牌">
-                <Input placeholder="请输入" />
+             <Form.Item name="contactInfo" label="联系人信息">
+                <Input placeholder="姓名/电话/邮箱" style={{ width: 150 }} />
              </Form.Item>
            </Col>
            <Col>
-             <Form.Item label="合作状态">
-                <Select placeholder="请选择" style={{ width: 120 }}>
-                   <Select.Option value="Enabled">已启用</Select.Option>
-                   <Select.Option value="Disabled">已禁用</Select.Option>
+             <Form.Item name="purchaserId" label="采购负责人">
+                <Select placeholder="请选择" style={{ width: 120 }} allowClear options={userOptions} />
+             </Form.Item>
+           </Col>
+           <Col>
+             <Form.Item name="settlementType" label="结算类型">
+                <Select placeholder="请选择" style={{ width: 100 }} allowClear>
+                   <Select.Option value="PREPAYMENT">预付</Select.Option>
+                   <Select.Option value="CASH">现付</Select.Option>
+                   <Select.Option value="PERIOD">账期</Select.Option>
+                </Select>
+             </Form.Item>
+           </Col>
+           <Col>
+             <Form.Item name="settlementPeriod" label="结算周期">
+                <Select placeholder="请选择" style={{ width: 100 }} allowClear>
+                   <Select.Option value={7}>周结</Select.Option>
+                   <Select.Option value={30}>月结</Select.Option>
+                   <Select.Option value={90}>季结</Select.Option>
                 </Select>
              </Form.Item>
            </Col>
            <Col>
              <Form.Item>
                 <Space>
-                   <Button type="primary">查询</Button>
-                   <Button>重置</Button>
+                   <Button type="primary" htmlType="submit">查询</Button>
+                   <Button onClick={() => {
+                     form.resetFields();
+                     fetchSuppliers(1, pagination.pageSize);
+                   }}>重置</Button>
                 </Space>
              </Form.Item>
            </Col>
@@ -286,13 +369,19 @@ const SupplierList: React.FC = () => {
               danger={!showExpiring} 
               type={showExpiring ? 'primary' : 'default'}
               onClick={() => setShowExpiring(!showExpiring)}
+              icon={showExpiring ? <CheckCircleOutlined /> : <WarningOutlined />}
             >
               {showExpiring ? '显示全部供应商' : '查看临期供应商'}
             </Button>
          </Space>
-         <Button icon={<ExportOutlined />} onClick={handleExport} loading={exporting}>
-            {exporting ? `导出中 ${progress}%` : '批量导出'}
-         </Button>
+         <Space>
+            <Button danger icon={<DeleteOutlined />} onClick={handleDeleteAll}>
+                清空数据
+            </Button>
+            <Button icon={<ExportOutlined />} onClick={handleExport} loading={exporting}>
+                {exporting ? `导出中 ${progress}%` : '批量导出'}
+            </Button>
+         </Space>
       </div>
 
       <Table columns={columns} dataSource={filteredData} scroll={{ x: 1300 }} loading={loading} />

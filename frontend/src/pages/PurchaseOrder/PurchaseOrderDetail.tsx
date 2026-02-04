@@ -189,7 +189,7 @@ const PurchaseOrderDetail: React.FC = () => {
 
       <Space direction="vertical" style={{ width: '100%' }} size="middle">
          {/* Actions */}
-         <Card bordered={false}>
+         <Card variant="borderless">
             <Space>
                <Button type="primary" onClick={() => setShipModalOpen(true)}>订单发货</Button>
                {purchaseType !== 'SelfDistribute' && (
@@ -198,7 +198,7 @@ const PurchaseOrderDetail: React.FC = () => {
             </Space>
          </Card>
 
-         <Card title="相关单号信息" bordered={false}>
+         <Card title="相关单号信息" variant="borderless">
             <Descriptions column={3}>
                <Descriptions.Item label="采购单号">{orderInfo.poNo}</Descriptions.Item>
                {purchaseType !== 'Inbound' && (
@@ -210,7 +210,7 @@ const PurchaseOrderDetail: React.FC = () => {
             </Descriptions>
          </Card>
 
-         <Card title="基本信息" bordered={false}>
+         <Card title="基本信息" variant="borderless">
             <Descriptions column={4}>
                <Descriptions.Item label="发货状态"><Tag color={orderInfo.status === '已发货' ? 'green' : 'orange'}>{orderInfo.status}</Tag></Descriptions.Item>
                <Descriptions.Item label="下单时间">{orderInfo.createTime}</Descriptions.Item>
@@ -219,13 +219,13 @@ const PurchaseOrderDetail: React.FC = () => {
             </Descriptions>
          </Card>
 
-         <Card title="订单备注" bordered={false}>
+         <Card title="订单备注" variant="borderless">
             <Descriptions>
                <Descriptions.Item label="备注信息">{orderInfo.remarks}</Descriptions.Item>
             </Descriptions>
          </Card>
 
-         <Card title={purchaseType === 'Inbound' ? '入库信息' : '收货信息'} bordered={false}>
+         <Card title={purchaseType === 'Inbound' ? '入库信息' : '收货信息'} variant="borderless">
             <Descriptions column={2}>
                <Descriptions.Item label={purchaseType === 'Inbound' ? '入库联系人' : '收货人'}>{orderInfo.receiver}</Descriptions.Item>
                <Descriptions.Item label="联系电话">{orderInfo.phone}</Descriptions.Item>
@@ -234,7 +234,7 @@ const PurchaseOrderDetail: React.FC = () => {
             </Descriptions>
          </Card>
 
-         <Card title="费用信息" bordered={false}>
+         <Card title="费用信息" variant="borderless">
              <Descriptions column={3}>
                  <Descriptions.Item label="采购单成本">¥{orderInfo.cost.toFixed(2)}</Descriptions.Item>
                  <Descriptions.Item label="物流费用">¥{orderInfo.freight.toFixed(2)}</Descriptions.Item>
@@ -249,7 +249,7 @@ const PurchaseOrderDetail: React.FC = () => {
              </Descriptions>
          </Card>
 
-         <Card title="商品信息" bordered={false}>
+         <Card title="商品信息" variant="borderless">
             <Table 
                dataSource={orderInfo.items || []} 
                pagination={false}
@@ -265,7 +265,7 @@ const PurchaseOrderDetail: React.FC = () => {
          </Card>
          
          {purchaseType !== 'SelfDistribute' && (
-             <Card title="结算记录" bordered={false}>
+             <Card title="结算记录" variant="borderless">
                  <Row gutter={16} style={{ marginBottom: 16 }}>
                      <Col span={6}>
                         <Statistic title="应结金额" value={orderInfo.dueAmt} precision={2} prefix="¥" />
@@ -307,7 +307,7 @@ const PurchaseOrderDetail: React.FC = () => {
              </Card>
          )}
 
-         <Card title="退款记录" bordered={false}>
+         <Card title="退款记录" variant="borderless">
              <Table 
                 size="small"
                 pagination={false}
@@ -328,7 +328,7 @@ const PurchaseOrderDetail: React.FC = () => {
              />
          </Card>
 
-         <Card title="调价记录" bordered={false}>
+         <Card title="调价记录" variant="borderless">
             <Table 
                size="small"
                pagination={false}
@@ -347,7 +347,7 @@ const PurchaseOrderDetail: React.FC = () => {
             />
          </Card>
 
-         <Card title="物流信息" bordered={false}>
+         <Card title="物流信息" variant="borderless">
             {orderInfo.status === '待发货' || orderInfo.status === '待处理' ? (
                <div style={{ color: '#999', textAlign: 'center', padding: 20 }}>暂无物流信息</div>
             ) : (
@@ -384,7 +384,7 @@ const PurchaseOrderDetail: React.FC = () => {
          </Card>
 
          <div style={{ display: 'flex', gap: 16 }}>
-            <Card title="操作记录" bordered={false} style={{ flex: 1 }}>
+            <Card title="操作记录" variant="borderless" style={{ flex: 1 }}>
                <Table 
                   size="small"
                   pagination={false}

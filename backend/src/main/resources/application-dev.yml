@@ -1,9 +1,19 @@
 spring:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+  elasticsearch:
+    rest:
+      uris: http://localhost:9200
   datasource:
-    url: jdbc:mysql://localhost:3306/supplypro?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8
+    url: jdbc:mysql://127.0.0.1:3307/supplypro?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8
     username: root
     password: password
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
+  flyway:
+    repair-on-migrate: true

@@ -51,6 +51,33 @@ public class SettlementOrder {
     @Column(name = "updated_at", insertable = false, updatable = false)
     private LocalDateTime updatedAt;
 
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getSettlementNo() { return settlementNo; }
+    public void setSettlementNo(String settlementNo) { this.settlementNo = settlementNo; }
+    public Supplier getSupplier() { return supplier; }
+    public void setSupplier(Supplier supplier) { this.supplier = supplier; }
+    public Type getType() { return type; }
+    public void setType(Type type) { this.type = type; }
+    public String getRelatedOrderNo() { return relatedOrderNo; }
+    public void setRelatedOrderNo(String relatedOrderNo) { this.relatedOrderNo = relatedOrderNo; }
+    public BigDecimal getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+    public Status getStatus() { return status; }
+    public void setStatus(Status status) { this.status = status; }
+    public LocalDateTime getPaymentDate() { return paymentDate; }
+    public void setPaymentDate(LocalDateTime paymentDate) { this.paymentDate = paymentDate; }
+    public String getPaymentMethod() { return paymentMethod; }
+    public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
+    public String getPaymentProof() { return paymentProof; }
+    public void setPaymentProof(String paymentProof) { this.paymentProof = paymentProof; }
+    public String getCreatedBy() { return createdBy; }
+    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
     public enum Type {
         PURCHASE, LOGISTICS
     }

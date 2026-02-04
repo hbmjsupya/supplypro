@@ -7,7 +7,11 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8080', // Backend local URL
+        target: 'http://localhost:8080', // Backend local URL (Updated to 8080 for local run)
+        changeOrigin: true,
+      },
+      '/uploads': {
+        target: 'http://localhost:8080',
         changeOrigin: true,
       }
     }

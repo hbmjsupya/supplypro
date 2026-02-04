@@ -127,7 +127,7 @@ const PurchaseOrderCreate: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Card title="新增采购单" bordered={false}>
+      <Card title="新增采购单" variant="borderless">
         <Form
           form={form}
           layout="vertical"
@@ -202,7 +202,7 @@ const PurchaseOrderCreate: React.FC = () => {
                       dataIndex: 'name',
                       render: (_, field) => (
                         <Form.Item {...field} name={[field.name, 'productName']} style={{ marginBottom: 0 }}>
-                          <Input readOnly bordered={false} />
+                          <Input readOnly variant="borderless" />
                         </Form.Item>
                       ),
                     },
@@ -211,7 +211,7 @@ const PurchaseOrderCreate: React.FC = () => {
                       dataIndex: 'spec',
                       render: (_, field) => (
                         <Form.Item {...field} name={[field.name, 'specName']} style={{ marginBottom: 0 }}>
-                          <Input readOnly bordered={false} />
+                          <Input readOnly variant="borderless" />
                         </Form.Item>
                       ),
                     },

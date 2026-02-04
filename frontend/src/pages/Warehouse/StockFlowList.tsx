@@ -76,7 +76,7 @@ const StockFlowList: React.FC = () => {
         ]}
       />
 
-      <Card bordered={false}>
+      <Card variant="borderless">
         <Form form={form} layout="inline" onFinish={onFinish} style={{ marginBottom: 24 }}>
            <Form.Item name="warehouse" label="仓库">
               <Select style={{ width: 150 }} placeholder="选择仓库" allowClear>

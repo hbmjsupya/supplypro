@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Button, Space, Tag, message, Modal, Switch } from 'antd';
+import { Table, Card, Button, Space, Tag, message, Modal, Switch, Form, Input, Select, Row, Col } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import PageDoc from '../../components/PageDoc';
+import request from '../../utils/request';
 import { LogisticsProvider } from '../../types/logistics';
 import { getLogisticsProviders, deleteLogisticsProvider, toggleLogisticsProviderStatus } from '../../services/logisticsService';
 
 const LogisticsProviderList: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<LogisticsProvider[]>([]);
+  const [userList, setUserList] = useState<any[]>([]);
+  const [form] = Form.useForm();
 
-  const loadData = async () => {
+  const loadData = async (params: any = {}) => {
     setLoading(true);
     try {
-      const list = await getLogisticsProviders();
+      const list = await getLogisticsProviders(params);
       setData(list);
     } catch (error) {
       message.error('加载数据失败');
@@ -23,9 +27,44 @@ const LogisticsProviderList: React.FC = () => {
     }
   };
 
+  const handleSearchUser = async (value: string) => {
+    if (value) {
+      try {
+        const res: any = await request.get('/users/list', { params: { username: value } });
+        setUserList(res.content || []);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  };
+
   useEffect(() => {
     loadData();
-  }, []);
+  }, [location.key]);
+
+  const handleSearch = () => {
+    form.validateFields().then(values => {
+      // Map values to backend params
+      let settlementPeriod;
+      if (values.settlementCycle === 'Daily') settlementPeriod = 1;
+      else if (values.settlementCycle === 'Weekly') settlementPeriod = 7;
+      else if (values.settlementCycle === 'Monthly') settlementPeriod = 30;
+
+      const params = {
+        name: values.name,
+        contactInfo: values.contactInfo,
+        settlementType: values.settlementType,
+        settlementPeriod,
+        purchaserId: values.purchaserId
+      };
+      loadData(params);
+    });
+  };
+
+  const handleReset = () => {
+    form.resetFields();
+    loadData();
+  };
 
   const handleDelete = (id: string) => {
     Modal.confirm({
@@ -61,8 +100,8 @@ const LogisticsProviderList: React.FC = () => {
     },
     {
       title: '联系人',
-      dataIndex: 'contactName',
-      key: 'contactName',
+      dataIndex: 'contactPerson',
+      key: 'contactPerson',
     },
     {
       title: '联系电话',
@@ -70,33 +109,31 @@ const LogisticsProviderList: React.FC = () => {
       key: 'contactPhone',
     },
     {
+      title: '采购负责人',
+      dataIndex: 'purchaserName',
+      key: 'purchaserName',
+      sorter: (a: any, b: any) => (a.purchaserName || a.procurementOwner || '').localeCompare(b.purchaserName || b.procurementOwner || ''),
+      render: (text: string, record: any) => {
+          const name = text || record.procurementOwner;
+          return name ? `${name}/${record.purchaserId}` : '-';
+      }
+    },
+    {
       title: '结算方式',
       key: 'settlement',
       render: (_: any, record: LogisticsProvider) => {
-          return record.settlementType === 'Period' ? '周期结算' : '现付';
+          return record.settlementType === 'CASH' ? '现付' : (record.settlementType === 'PREPAYMENT' ? '预付' : '-');
       }
     },
     {
       title: '结算周期',
-      dataIndex: 'settlementCycle',
-      key: 'settlementCycle',
-      filters: [
-          { text: '日结', value: 'Daily' },
-          { text: '周结', value: 'Weekly' },
-          { text: '月结', value: 'Monthly' },
-      ],
-      onFilter: (value: any, record: LogisticsProvider) => record.settlementCycle === value,
-      render: (val: string) => {
-          const map: any = { 'Daily': '日结', 'Weekly': '周结', 'Monthly': '月结' };
-          return map[val] || '-';
-      }
-    },
-    {
-      title: '账户类型',
-      key: 'accountType',
-      render: (_: any, record: LogisticsProvider) => {
-          const defaultAccount = record.accounts.find(a => a.isDefault);
-          return defaultAccount ? (defaultAccount.type === 'Company' ? '公司' : '个人') : '-';
+      dataIndex: 'settlementPeriod',
+      key: 'settlementPeriod',
+      render: (val: number) => {
+          if (val === 1) return '日结';
+          if (val === 7) return '周结';
+          if (val === 30) return '月结';
+          return val ? `${val}天` : '-';
       }
     },
     {
@@ -105,7 +142,7 @@ const LogisticsProviderList: React.FC = () => {
       key: 'status',
       render: (status: string, record: LogisticsProvider) => (
         <Switch
-            checked={status === 'enabled'}
+            checked={status === 'ACTIVE' || status === 'enabled'}
             onChange={(checked) => handleStatusChange(record.id, checked)}
             checkedChildren="启用"
             unCheckedChildren="禁用"
@@ -144,11 +181,53 @@ const LogisticsProviderList: React.FC = () => {
         description="管理系统接入的物流服务商，维护基础信息及结算账户。" 
       />
       
-      <Card bordered={false}>
+      <Card variant="borderless">
         <div style={{ marginBottom: 16 }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/supply-chain/logistics-provider/create')}>
-            新增物流供应商
-          </Button>
+            <Form form={form} layout="inline" onFinish={handleSearch}>
+                <Form.Item name="name" label="供应商名称">
+                    <Input placeholder="请输入供应商名称" />
+                </Form.Item>
+                <Form.Item name="contactInfo" label="联系人信息">
+                    <Input placeholder="姓名/电话" />
+                </Form.Item>
+                <Form.Item name="purchaserId" label="采购负责人">
+                    <Select
+                        showSearch
+                        placeholder="请选择"
+                        style={{ width: 150 }}
+                        allowClear
+                        filterOption={false}
+                        onSearch={handleSearchUser}
+                        notFoundContent={null}
+                        options={(userList || []).map(d => ({
+                            value: d.id,
+                            label: d.username,
+                        }))}
+                    />
+                </Form.Item>
+                <Form.Item name="settlementType" label="结算方式">
+                    <Select placeholder="请选择" style={{ width: 120 }} allowClear>
+                        <Select.Option value="CASH">现付</Select.Option>
+                        <Select.Option value="PREPAYMENT">预付</Select.Option>
+                    </Select>
+                </Form.Item>
+                <Form.Item name="settlementCycle" label="结算周期">
+                    <Select placeholder="请选择" style={{ width: 120 }} allowClear>
+                        <Select.Option value="Daily">日结</Select.Option>
+                        <Select.Option value="Weekly">周结</Select.Option>
+                        <Select.Option value="Monthly">月结</Select.Option>
+                    </Select>
+                </Form.Item>
+                <Form.Item>
+                    <Space>
+                        <Button type="primary" htmlType="submit">查询</Button>
+                        <Button onClick={handleReset}>重置</Button>
+                        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/supply-chain/logistics-provider/create')}>
+                          新增
+                        </Button>
+                    </Space>
+                </Form.Item>
+            </Form>
         </div>
         
         <Table

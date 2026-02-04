@@ -24,7 +24,7 @@ export interface BrandListResponse {
 // or we need to handle the structure.
 // Let's check request.ts first to be sure.
 
-export const getBrands = (params: { page?: number; size?: number; name?: string }) => {
+export const getBrands = (params: { page?: number; size?: number; name?: string; status?: 'ENABLED' | 'DISABLED' }) => {
   return request.get<any, any>('/brands', { params });
 };
 

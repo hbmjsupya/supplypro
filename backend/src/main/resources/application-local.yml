@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:supplypro;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  flyway:
+    enabled: false
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
+supplypro:
+  app:
+    jwtSecret: supplyproSecretKeyForJwtAuthenticationSupplyProSecretKeyForJwtAuthentication
+    jwtExpirationMs: 86400000
+
+file:
+  upload-dir: uploads
+  allowed-types: jpg,jpeg,png,pdf,doc,docx,xls,xlsx

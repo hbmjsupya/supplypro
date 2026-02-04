@@ -23,7 +23,7 @@ public class FlowIntegrationTest {
     @Autowired private CustomerRepository customerRepository;
     @Autowired private WarehouseRepository warehouseRepository;
     @Autowired private ProductRepository productRepository;
-    @Autowired private BrandRepository brandRepository;
+    // @Autowired private BrandRepository brandRepository;
 
     @Autowired private PurchaseOrderController purchaseOrderController;
     @Autowired private InboundOrderController inboundOrderController;
@@ -35,8 +35,8 @@ public class FlowIntegrationTest {
     @Autowired private StockFlowRepository stockFlowRepository;
     @Autowired private PurchaseOrderRepository purchaseOrderRepository;
     @Autowired private SalesOrderRepository salesOrderRepository;
-    @Autowired private InboundOrderRepository inboundOrderRepository;
-    @Autowired private OutboundOrderRepository outboundOrderRepository;
+    // @Autowired private InboundOrderRepository inboundOrderRepository;
+    // @Autowired private OutboundOrderRepository outboundOrderRepository;
 
     @Test
     public void verifyFullSupplyChainFlow() {
@@ -53,6 +53,7 @@ public class FlowIntegrationTest {
         supplier.setName("Test Supplier");
         supplier.setSupplierNo("SUP-TEST");
         supplier.setStatus(Supplier.Status.ACTIVE);
+        supplier.setSettlementType(Supplier.SettlementType.PERIOD);
         supplier = supplierRepository.save(supplier);
 
         Customer customer = new Customer();
@@ -64,7 +65,6 @@ public class FlowIntegrationTest {
         Product product = new Product();
         product.setName("Test Product");
         product.setSkuCode("SKU-" + System.currentTimeMillis());
-        product.setCostPrice(new BigDecimal("10.00"));
         // product.setSalesPrice(new BigDecimal("20.00")); // Field undefined
         product.setStatus(Product.Status.ON_SHELF);
         product = productRepository.save(product);
@@ -80,7 +80,7 @@ public class FlowIntegrationTest {
         po.setOrderNo("PO-" + System.currentTimeMillis());
         po.setSupplier(supplier);
         po.setWarehouseId(warehouse.getId());
-        po.setType(PurchaseOrder.Type.INBOUND);
+        po.setType(PurchaseOrder.Type.STANDARD);
         po.setStatus(PurchaseOrder.Status.PENDING);
         po.setTotalAmount(new BigDecimal("1000.00"));
         po.setCreatedBy("TestUser");
@@ -140,7 +140,7 @@ public class FlowIntegrationTest {
         SettlementOrder settlement = new SettlementOrder();
         settlement.setType(SettlementOrder.Type.PURCHASE);
         settlement.setRelatedOrderNo(updatedPO.getOrderNo());
-        settlement.setAmount(new BigDecimal("1000.00"));
+        settlement.setTotalAmount(new BigDecimal("1000.00"));
         ResponseEntity<Map<String, Object>> settlementResp = settlementOrderController.create(settlement);
         Assertions.assertEquals(200, settlementResp.getBody().get("code"));
         

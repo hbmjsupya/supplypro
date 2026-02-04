@@ -208,7 +208,7 @@ const SupplierPrepaymentDetail: React.FC = () => {
       ]} />
 
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Card title="基础信息" bordered={false}>
+        <Card title="基础信息" variant="borderless">
           <Descriptions column={{ xxl: 3, xl: 3, lg: 3, md: 3, sm: 2, xs: 1 }}>
             <Descriptions.Item label="预付款单号">{detail.id}</Descriptions.Item>
             <Descriptions.Item label="审批状态">
@@ -229,7 +229,7 @@ const SupplierPrepaymentDetail: React.FC = () => {
           </Descriptions>
         </Card>
 
-        <Card title="收付款信息" bordered={false}>
+        <Card title="收付款信息" variant="borderless">
           <Descriptions title="付款方信息" column={{ xxl: 3, xl: 3, lg: 3, md: 3, sm: 2, xs: 1 }} style={{ marginBottom: 16 }}>
             <Descriptions.Item label="名称">{detail.payer.name}</Descriptions.Item>
             <Descriptions.Item label="开户行">{detail.payer.bank}</Descriptions.Item>
@@ -243,7 +243,7 @@ const SupplierPrepaymentDetail: React.FC = () => {
           </Descriptions>
         </Card>
 
-        <Card title="联系与金额" bordered={false}>
+        <Card title="联系与金额" variant="borderless">
            <Descriptions column={{ xxl: 3, xl: 3, lg: 3, md: 3, sm: 2, xs: 1 }}>
              <Descriptions.Item label="供应商联系人">{detail.contact.name}</Descriptions.Item>
              <Descriptions.Item label="联系电话">{detail.contact.phone}</Descriptions.Item>
@@ -253,7 +253,7 @@ const SupplierPrepaymentDetail: React.FC = () => {
            </Descriptions>
         </Card>
 
-        <Card title="附件信息" bordered={false}>
+        <Card title="附件信息" variant="borderless">
            <Space>
              {detail.attachments.map((file, index) => (
                 <div key={index} style={{ border: '1px solid #d9d9d9', padding: 8, borderRadius: 4 }}>
@@ -265,7 +265,7 @@ const SupplierPrepaymentDetail: React.FC = () => {
         </Card>
 
         {detail.paymentRecords && detail.paymentRecords.length > 0 && (
-           <Card title="付款凭证" bordered={false}>
+           <Card title="付款凭证" variant="borderless">
               <Timeline>
                 {detail.paymentRecords.map((record, index) => (
                   <Timeline.Item key={index} color="green">
@@ -292,7 +292,7 @@ const SupplierPrepaymentDetail: React.FC = () => {
            </Card>
         )}
 
-        <Card bordered={false}>
+        <Card variant="borderless">
           <Steps 
             direction="vertical" 
             current={getStepCurrent()} 
@@ -306,7 +306,7 @@ const SupplierPrepaymentDetail: React.FC = () => {
           />
         </Card>
 
-        <Card title="操作记录" bordered={false}>
+        <Card title="操作记录" variant="borderless">
            <Table
               dataSource={[...detail.logs].reverse()}
               pagination={{ pageSize: 10 }}

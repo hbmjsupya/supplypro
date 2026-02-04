@@ -23,7 +23,6 @@ public class ProductTest {
         product.setName("Unified Product");
         product.setSkuCode("SKU-UNIFIED-001");
         product.setStatus(Product.Status.ON_SHELF);
-        product.setCostPrice(new BigDecimal("50.00"));
         
         // New fields
         product.setTaxClass("Standard");

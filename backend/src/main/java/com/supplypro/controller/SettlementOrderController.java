@@ -65,10 +65,11 @@ public class SettlementOrderController {
     }
 
     @PostMapping("/generate")
+    @SuppressWarnings("unchecked")
     public ApiResponse<SettlementOrder> generate(@RequestBody Map<String, Object> payload) {
         Long supplierId = Long.valueOf(payload.get("supplierId").toString());
         List<Integer> orderIdsInt = (List<Integer>) payload.get("orderIds");
-        List<Long> orderIds = orderIdsInt.stream().map(Long::valueOf).collect(java.util.stream.Collectors.toList());
+        List<Long> orderIds = orderIdsInt.stream().map(Integer::longValue).collect(java.util.stream.Collectors.toList());
         String createdBy = "admin"; // TODO: get user
         
         return ApiResponse.success(settlementService.createSettlement(supplierId, orderIds, createdBy));

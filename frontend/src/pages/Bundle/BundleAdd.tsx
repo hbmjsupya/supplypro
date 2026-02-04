@@ -109,7 +109,7 @@ const BundleAdd: React.FC = () => {
       ]} />
       
       <Form form={form} layout="vertical" onFinish={onFinish} initialValues={{ saleType: 'Bundle', status: 'PendingSelection' }}>
-        <Card title="基本信息" bordered={false} style={{ marginBottom: 24 }}>
+        <Card title="基本信息" variant="borderless" style={{ marginBottom: 24 }}>
            <Row gutter={24}>
               <Col span={12}>
                  <Form.Item name="bundleName" label="组合商品名称" rules={[{ required: true }]}>
@@ -133,7 +133,7 @@ const BundleAdd: React.FC = () => {
            </Row>
         </Card>
 
-        <Card title="商品规格 (组合内容)" bordered={false} style={{ marginBottom: 24 }}>
+        <Card title="商品规格 (组合内容)" variant="borderless" style={{ marginBottom: 24 }}>
            <Table
               dataSource={subProducts}
               pagination={false}

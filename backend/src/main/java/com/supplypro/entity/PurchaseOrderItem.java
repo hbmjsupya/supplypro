@@ -47,10 +47,4 @@ public class PurchaseOrderItem {
     public String getSkuCode() {
         return product != null ? product.getSkuCode() : null;
     }
-
-    @Transient
-    @JsonProperty("spec")
-    public String getSpec() {
-        return product != null ? product.getSpec() : null;
-    }
 }

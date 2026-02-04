@@ -18,3 +18,13 @@ Thumbs.db
 
 # Docker
 daemon.json
+
+# Custom
+frontend/.npm-cache/
+backend/uploads/
+backend/tools/
+tools/apache-maven-*/
+*.tar.gz
+*.zip
+.trae/
+

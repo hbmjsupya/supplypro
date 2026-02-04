@@ -119,7 +119,7 @@ const PendingDeliverySettlementList: React.FC = () => {
         pageTitle="结算管理 > 待结算配送单"
         description="管理所有已发货但未结算的物流/配送费用清单，支持合并发起结算。"
       />
-      <Card bordered={false}>
+      <Card variant="borderless">
           <Form layout="inline" style={{ marginBottom: 16 }}>
               <Form.Item label="供应商">
                   <Input 

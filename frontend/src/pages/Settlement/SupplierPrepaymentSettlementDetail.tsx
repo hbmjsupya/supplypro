@@ -110,7 +110,7 @@ const SupplierPrepaymentSettlementDetail: React.FC = () => {
 
       <Space direction="vertical" style={{ width: '100%' }} size="middle">
          {/* Top Info */}
-         <Card bordered={false} bodyStyle={{ padding: '16px 24px' }}>
+         <Card variant="borderless" bodyStyle={{ padding: '16px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                 <Space>
                     <span style={{ color: '#888' }}>当前状态：</span>
@@ -121,7 +121,7 @@ const SupplierPrepaymentSettlementDetail: React.FC = () => {
             </div>
          </Card>
 
-         <Card title="基本信息" bordered={false}>
+         <Card title="基本信息" variant="borderless">
             <Descriptions column={3}>
                <Descriptions.Item label="结算单号">{settlementInfo.settlementNo}</Descriptions.Item>
                <Descriptions.Item label="结算类型">
@@ -140,7 +140,7 @@ const SupplierPrepaymentSettlementDetail: React.FC = () => {
             </Descriptions>
          </Card>
 
-         <Card title="关联采购单列表" bordered={false}>
+         <Card title="关联采购单列表" variant="borderless">
             <Table 
                pagination={false}
                dataSource={[
@@ -170,7 +170,7 @@ const SupplierPrepaymentSettlementDetail: React.FC = () => {
                     </Button>
                 </div>
             } 
-            bordered={false}
+            variant="borderless"
          >
             {expandHistory ? (
                 <Table
@@ -220,7 +220,7 @@ const SupplierPrepaymentSettlementDetail: React.FC = () => {
          </Card>
 
          {/* Bottom Actions - Only Back */}
-         <Card bordered={false} bodyStyle={{ padding: '16px 24px', textAlign: 'right' }}>
+         <Card variant="borderless" bodyStyle={{ padding: '16px 24px', textAlign: 'right' }}>
              <Space>
                 <Button onClick={() => navigate(-1)}>返回</Button>
              </Space>

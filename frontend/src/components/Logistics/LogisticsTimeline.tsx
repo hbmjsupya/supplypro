@@ -23,7 +23,7 @@ const LogisticsTimeline: React.FC<LogisticsTimelineProps> = ({ tracks }) => {
             <Tag color={latest.status === '已签收' ? 'green' : 'blue'}>{latest.status}</Tag>
           </div>
         }
-        bordered={false}
+        variant="borderless"
         className="mb-4"
       >
         <Timeline

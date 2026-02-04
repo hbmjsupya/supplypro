@@ -24,11 +24,9 @@ const BrandDetail: React.FC = () => {
   useEffect(() => {
     const fetchSuppliers = async () => {
       try {
-        // Fetch a large page to get most suppliers
-        const res = await getSuppliers({ size: 1000 });
-        // Filter only ACTIVE suppliers
-        const activeSuppliers = (res.content || []).filter(s => s.status === 'ACTIVE');
-        setAllSuppliers(activeSuppliers);
+        // Fetch a large page to get most suppliers, filtering by ACTIVE status from backend
+        const res = await getSuppliers({ size: 1000, status: 'ACTIVE' });
+        setAllSuppliers(res.content || []);
       } catch (error) {
         message.error('加载供应商列表失败');
       }
@@ -151,7 +149,7 @@ const BrandDetail: React.FC = () => {
       ]} />
       
       <Form form={form} layout="vertical" onFinish={onFinish}>
-        <Card title="品牌基本信息" bordered={false} style={{ marginBottom: 24 }}>
+        <Card title="品牌基本信息" variant="borderless" style={{ marginBottom: 24 }}>
            <Form.Item name="name" label="品牌名称" rules={[{ required: true, message: '请输入品牌名称' }]}>
               <Input placeholder="请输入品牌名称" />
            </Form.Item>
@@ -165,7 +163,7 @@ const BrandDetail: React.FC = () => {
            </Form.Item>
         </Card>
 
-        <Card title="关联供应商" bordered={false} style={{ marginBottom: 24 }}>
+        <Card title="关联供应商" variant="borderless" style={{ marginBottom: 24 }}>
            <Table
               dataSource={suppliers}
               pagination={false}

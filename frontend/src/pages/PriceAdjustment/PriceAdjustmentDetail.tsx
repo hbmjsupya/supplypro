@@ -126,7 +126,7 @@ const PriceAdjustmentDetail: React.FC = () => {
 
       <Space direction="vertical" style={{ width: '100%' }} size="middle">
          {/* Actions */}
-         <Card bordered={false}>
+         <Card variant="borderless">
             <Space>
                <Button onClick={() => navigate(-1)}>返回</Button>
                <Button danger>撤销</Button>
@@ -134,7 +134,7 @@ const PriceAdjustmentDetail: React.FC = () => {
             </Space>
          </Card>
 
-         <Card title="基本信息" bordered={false}>
+         <Card title="基本信息" variant="borderless">
             <Descriptions column={2}>
                <Descriptions.Item label="调价单号">{data.adjustNo}</Descriptions.Item>
                <Descriptions.Item label="审批状态"><Tag color="blue">{data.status}</Tag></Descriptions.Item>
@@ -143,7 +143,7 @@ const PriceAdjustmentDetail: React.FC = () => {
             </Descriptions>
          </Card>
 
-         <Card title="调价信息" bordered={false}>
+         <Card title="调价信息" variant="borderless">
             <Table 
                pagination={false}
                dataSource={data.items}
@@ -159,7 +159,7 @@ const PriceAdjustmentDetail: React.FC = () => {
             />
          </Card>
 
-         <Card title="审批流程" bordered={false}>
+         <Card title="审批流程" variant="borderless">
             <Steps
                direction="vertical"
                current={1}
@@ -167,7 +167,7 @@ const PriceAdjustmentDetail: React.FC = () => {
             />
          </Card>
 
-         <Card title="操作记录" bordered={false}>
+         <Card title="操作记录" variant="borderless">
             <Table 
                dataSource={data.history}
                pagination={false}

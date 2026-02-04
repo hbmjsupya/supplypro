@@ -55,6 +55,7 @@ graph TD
 - **缓存**: Redis 6.0+
 - **安全框架**: Spring Security + JWT
 - **API文档**: Swagger/OpenAPI 3.0
+- **文件存储**: 本地文件系统 (已设计接口支持 AWS S3/OSS 扩展)
 - **构建工具**: Maven 3.8+
 
 ### 2.2 前端技术栈
@@ -231,7 +232,6 @@ erDiagram
         varchar sku_code
         varchar name
         varchar brand
-        decimal cost_price
         varchar status
     }
     

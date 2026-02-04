@@ -1,6 +1,12 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ConfigProvider } from 'antd';
+import zhCN from 'antd/es/locale/zh_CN';
+import dayjs from 'dayjs';
+import 'dayjs/locale/zh-cn';
 import MainLayout from './layouts/MainLayout';
+
+dayjs.locale('zh-cn');
 
 // Purchase
 import BrandList from './pages/Brand/BrandList';
@@ -50,6 +56,7 @@ import Login from './pages/Login/Login';
 
 const App: React.FC = () => {
   return (
+    <ConfigProvider locale={zhCN}>
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -110,6 +117,7 @@ const App: React.FC = () => {
         </Route>
       </Routes>
     </Router>
+    </ConfigProvider>
   );
 };
 

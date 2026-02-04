@@ -29,6 +29,7 @@ public class LogisticsTrack {
 
     private String location;
 
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "event_time", nullable = false)

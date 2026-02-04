@@ -247,7 +247,7 @@ const InboundOrderDetail: React.FC = () => {
 
       <Space direction="vertical" style={{ width: '100%', paddingBottom: 60 }} size="large">
         
-        <Card title="基本信息" bordered={false}>
+        <Card title="基本信息" variant="borderless">
            <Descriptions column={3}>
               <Descriptions.Item label="入库单号">{orderInfo.id}</Descriptions.Item>
               <Descriptions.Item label="关联采购单">
@@ -268,7 +268,7 @@ const InboundOrderDetail: React.FC = () => {
         {/* Logistics Information */}
         <Card 
             title="物流信息" 
-            bordered={false}
+            variant="borderless"
             extra={
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                     <span style={{ marginRight: 8, fontSize: 12, color: '#999' }}>示例状态切换:</span>
@@ -340,7 +340,7 @@ const InboundOrderDetail: React.FC = () => {
             )}
         </Card>
 
-        <Card title="入库明细" bordered={false}>
+        <Card title="入库明细" variant="borderless">
            <Table 
               dataSource={orderInfo.items}
               pagination={false}
@@ -357,7 +357,7 @@ const InboundOrderDetail: React.FC = () => {
 
 
         {/* Approval Flow */}
-        <Card title="审批流程" bordered={false}>
+        <Card title="审批流程" variant="borderless">
            <Steps
              direction="vertical"
              current={1}
@@ -370,7 +370,7 @@ const InboundOrderDetail: React.FC = () => {
            />
         </Card>
 
-        <Card title="操作日志" bordered={false}>
+        <Card title="操作日志" variant="borderless">
            <Timeline
               items={orderInfo.logs.map((log: any) => ({
                  children: `${log.time} ${log.user} ${log.action}`
