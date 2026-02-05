@@ -28,3 +28,6 @@ tools/apache-maven-*/
 *.zip
 .trae/
 
+# Backup
+_backup_src/
+backups/

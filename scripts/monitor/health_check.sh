@@ -1,45 +1,51 @@
 #!/bin/bash
 
-# Health Check Script for SupplyPro
-# Checks Docker containers and HTTP endpoints
+# Define colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
-LOG_FILE="health_check.log"
-DATE=$(date "+%Y-%m-%d %H:%M:%S")
+PROJECT_ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 
-echo "[$DATE] Starting Health Check..." >> $LOG_FILE
+echo -e "${YELLOW}Starting System Health Check...${NC}"
 
-# 1. Check Containers
-CONTAINERS=("supplypro-backend" "supplypro-frontend" "supplypro-db" "supplypro-redis" "supplypro-es" "supplypro-rabbitmq")
-ALL_UP=true
+# 1. Check Backend (Port 8080)
+echo -e "\n[Backend Service]"
+if lsof -i :8080 > /dev/null; then
+    echo -e "${GREEN}✓ Backend is running on port 8080${NC}"
+else
+    echo -e "${RED}✗ Backend is NOT running on port 8080${NC}"
+    echo -e "${YELLOW}  -> Try starting it with: ./backend/start_server.sh${NC}"
+fi
 
-for container in "${CONTAINERS[@]}"; do
-    if [ "$(docker inspect -f '{{.State.Running}}' $container 2>/dev/null)" == "true" ]; then
-        echo "✅ Container $container is RUNNING"
+# 2. Check Frontend (Port 5173 or 80)
+echo -e "\n[Frontend Service]"
+if lsof -i :5173 > /dev/null; then
+    echo -e "${GREEN}✓ Frontend (Dev) is running on port 5173${NC}"
+elif lsof -i :80 > /dev/null; then
+    echo -e "${GREEN}✓ Frontend (Docker) is running on port 80${NC}"
+else
+    echo -e "${RED}✗ Frontend is NOT running on port 5173 or 80${NC}"
+    # Check if docker container exists
+    if docker ps -a | grep -q "frontend"; then
+        echo -e "${YELLOW}  -> Frontend container exists but might be stopped.${NC}"
     else
-        echo "❌ Container $container is DOWN"
-        echo "[$DATE] Error: Container $container is DOWN" >> $LOG_FILE
-        ALL_UP=false
-    fi
-done
-
-# 2. Check Backend Health Endpoint
-if $ALL_UP; then
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/actuator/health)
-    if [ "$HTTP_CODE" == "200" ] || [ "$HTTP_CODE" == "401" ]; then # 401 is ok if auth protected
-        echo "✅ Backend API is reachable (HTTP $HTTP_CODE)"
-    else
-        echo "❌ Backend API check FAILED (HTTP $HTTP_CODE)"
-        echo "[$DATE] Error: Backend API returned $HTTP_CODE" >> $LOG_FILE
-    fi
-    
-    # Check Frontend
-    FE_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:80)
-    if [ "$FE_CODE" == "200" ]; then
-        echo "✅ Frontend is reachable"
-    else
-        echo "❌ Frontend check FAILED (HTTP $FE_CODE)"
-        echo "[$DATE] Error: Frontend returned $FE_CODE" >> $LOG_FILE
+        echo -e "${YELLOW}  -> Frontend container not found.${NC}"
     fi
 fi
 
-echo "[$DATE] Health Check Complete" >> $LOG_FILE
+# 3. Check Database (Port 3307)
+echo -e "\n[Database Service]"
+if lsof -i :3307 > /dev/null; then
+    echo -e "${GREEN}✓ Database is listening on port 3307${NC}"
+else
+    echo -e "${RED}✗ Database is NOT listening on port 3307${NC}"
+    echo -e "${YELLOW}  -> Check your Docker containers.${NC}"
+fi
+
+# 4. Check Docker Containers
+echo -e "\n[Docker Container Status]"
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "supplypro|mysql|redis|frontend" || echo "No relevant containers running."
+
+echo -e "\n${YELLOW}Health Check Complete.${NC}"
