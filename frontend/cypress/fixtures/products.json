@@ -1,0 +1,50 @@
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "records": [
+      {
+        "id": 101,
+        "name": "Test Product 1",
+        "code": "P001",
+        "category": "Electronics",
+        "brand": "BrandA",
+        "status": "ON_SHELF",
+        "skus": [
+            {
+                "id": 1,
+                "skuCode": "SKU001",
+                "name": "Color: Red",
+                "costPrice": 50.00
+            },
+            {
+                "id": 2,
+                "skuCode": "SKU002",
+                "name": "Color: Blue",
+                "costPrice": 50.00
+            }
+        ]
+      },
+      {
+        "id": 102,
+        "name": "Test Product 2",
+        "code": "P002",
+        "category": "Office",
+        "brand": "BrandB",
+        "status": "ON_SHELF",
+        "skus": [
+            {
+                "id": 3,
+                "skuCode": "SKU003",
+                "name": "Standard",
+                "costPrice": 20.00
+            }
+        ]
+      }
+    ],
+    "total": 2,
+    "size": 10,
+    "current": 1,
+    "pages": 1
+  }
+}

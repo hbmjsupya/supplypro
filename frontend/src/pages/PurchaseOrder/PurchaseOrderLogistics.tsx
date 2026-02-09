@@ -3,7 +3,9 @@ import { Card, Descriptions, Button, Space, Breadcrumb, Tag, Timeline, Spin, Res
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { CheckCircleOutlined, ClockCircleOutlined, UserOutlined, CarOutlined, ExclamationCircleOutlined, EnvironmentOutlined, UpOutlined, DownOutlined, CopyOutlined } from '@ant-design/icons';
 import PageDoc from '../../components/PageDoc';
-import { getPurchaseOrders, getLogisticsTracks, LogisticsTrack, PurchaseOrder } from '../../services/purchaseOrderService';
+import { getPurchaseOrderById, PurchaseOrder } from '../../services/purchaseOrderService';
+import { getLogisticsTracks } from '../../services/logisticsService';
+import { LogisticsTrack } from '../../types/logistics';
 
 const PurchaseOrderLogistics: React.FC = () => {
   const navigate = useNavigate();
@@ -36,10 +38,22 @@ const PurchaseOrderLogistics: React.FC = () => {
             
             // If not in state, fetch from service
             if (!poData || poData.poNo !== id) {
-                const orders = await getPurchaseOrders();
-                const found = orders.find(o => o.poNo === id || o.id === id);
-                if (found) {
-                    poData = found;
+                if (id && !isNaN(Number(id))) {
+                    try {
+                        const found = await getPurchaseOrderById(Number(id));
+                        if (found) {
+                            poData = {
+                                ...found,
+                                poNo: found.orderNo,
+                                supplier: found.supplierName,
+                                trackingNo: found.trackingNumber,
+                                logisticsCompany: found.logisticsCompany,
+                                shippedTime: found.shippedAt
+                            };
+                        }
+                    } catch (e) {
+                         console.error(e);
+                    }
                 }
             }
 
@@ -258,19 +272,18 @@ const PurchaseOrderLogistics: React.FC = () => {
                                         <Timeline 
                                             mode="left"
                                             items={logisticsTracksMap[item.trackingNo].map((track) => ({
-                                                color: track.statusType === 'default' ? 'gray' : (track.statusType === 'error' ? 'red' : 'green'),
-                                                dot: getStatusIcon(track.status, track.statusType),
+                                                color: 'green',
+                                                dot: getStatusIcon(track.status, 'processing'),
                                                 children: (
                                                     <div style={{ paddingBottom: 10 }}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                                                             <span style={{ fontWeight: 'bold', fontSize: 14 }}>{track.status}</span>
-                                                            <span style={{ color: '#999', fontSize: 12 }}>{track.time}</span>
+                                                            <span style={{ color: '#999', fontSize: 12 }}>{track.eventTime}</span>
                                                         </div>
                                                         <div style={{ color: '#666' }}>{track.description}</div>
                                                         <div style={{ marginTop: 4, fontSize: 12, color: '#999' }}>
                                                             <EnvironmentOutlined style={{ marginRight: 4 }} />
                                                             {track.location}
-                                                            {track.operator && <span style={{ marginLeft: 10 }}><UserOutlined style={{ marginRight: 4 }}/>{track.operator}</span>}
                                                         </div>
                                                     </div>
                                                 )

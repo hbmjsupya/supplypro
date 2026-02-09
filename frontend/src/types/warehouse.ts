@@ -5,10 +5,16 @@ export interface Warehouse {
   province: string;
   city: string;
   district: string;
+  provinceCode?: string;
+  cityCode?: string;
+  districtCode?: string;
   address: string;
-  admins: string[]; // User IDs
-  status: 'enabled' | 'disabled';
-  createTime: string;
+  admins: string[]; // Legacy: Usernames
+  managerIds?: number[]; // For form submission
+  managers?: any[]; // For display
+  status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
+  createTime?: string;
+  createdAt?: string; // Backend field
 }
 
 export interface InventoryBatch {

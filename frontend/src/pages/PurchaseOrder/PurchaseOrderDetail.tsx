@@ -3,7 +3,7 @@ import { Card, Descriptions, Table, Tag, Timeline, Button, Space, Breadcrumb, Di
 import { UploadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useNavigate, useParams } from 'react-router-dom';
-import { shipPurchaseOrder, getPurchaseOrders } from '../../services/purchaseOrderService';
+import { shipPurchaseOrder, getPurchaseOrders, getPurchaseOrderById } from '../../services/purchaseOrderService';
 import { getLogisticsTracks } from '../../services/logisticsService';
 import { createInboundOrder } from '../../services/warehouseService';
 import type { InboundOrder } from '../../types/warehouse';
@@ -58,26 +58,31 @@ const PurchaseOrderDetail: React.FC = () => {
   useEffect(() => {
     const fetchOrder = async () => {
         if (id) {
-            const orders = await getPurchaseOrders();
-            const order = orders.find(o => o.id === id);
-            if (order) {
-                // Merge real data with display structure
-                setOrderInfo((prev: any) => ({
-                    ...prev,
-                    poNo: order.poNo,
-                    supplier: order.supplierName,
-                    status: order.status === 'shipped' ? '已发货' : (order.status === 'approved' ? '待发货' : order.status),
-                    items: order.items,
-                    // If shipped, populate logistics
-                    shipCompany: order.logisticsCompany,
-                    shipNo: order.trackingNo,
-                    freight: order.logisticsFee || 0,
-                    shipTime: order.shippedTime
-                }));
-                
-                // Fetch tracks
-                const trackList = await getLogisticsTracks(order.poNo);
-                setTracks(trackList);
+            try {
+                const order = await getPurchaseOrderById(Number(id));
+                if (order) {
+                    // Merge real data with display structure
+                    setOrderInfo((prev: any) => ({
+                        ...prev,
+                        poNo: order.orderNo, // Assuming orderNo is the field
+                        supplier: order.supplierName,
+                        status: order.status === 'SHIPPED' ? '已发货' : (order.status === 'CONFIRMED' ? '待发货' : order.status),
+                        items: order.items,
+                        // If shipped, populate logistics
+                        shipCompany: order.logisticsCompany,
+                        shipNo: order.trackingNumber,
+                        freight: 0, // order.logisticsFee not in interface yet
+                        shipTime: order.shippedAt
+                    }));
+                    
+                    // Fetch tracks
+                    if (order.orderNo) {
+                        const trackList = await getLogisticsTracks(order.orderNo);
+                        setTracks(trackList);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch order", error);
             }
         }
     };
@@ -98,29 +103,28 @@ const PurchaseOrderDetail: React.FC = () => {
         
         // 1. Update PO status to shipped
         if (id) {
-            await shipPurchaseOrder(id, values);
+            await shipPurchaseOrder(Number(id), values);
             
             // 2. Auto-create Inbound Order
             // Fetch fresh PO data to get items
-            const orders = await getPurchaseOrders();
-            const currentPO = orders.find(o => o.id === id);
+            const currentPO = await getPurchaseOrderById(Number(id));
             
             if (currentPO) {
                 const newInboundOrder: InboundOrder = {
                     id: `IN${Date.now()}`,
-                    poNo: currentPO.poNo,
-                    supplierId: currentPO.supplierId,
-                    supplierName: currentPO.supplierName,
+                    poNo: currentPO.orderNo || '',
+                    supplierId: String(currentPO.supplierId),
+                    supplierName: currentPO.supplierName || '',
                     warehouseCode: 'WH001', // Default or derived
                     status: 'pending',
                     createTime: new Date().toISOString(),
-                    items: currentPO.items.map(item => ({
-                        productId: item.productId,
-                        skuId: item.skuId,
+                    items: currentPO.items.map((item: any) => ({
+                        productId: String(item.productId),
+                        skuId: String(item.skuId || 0),
                         productName: item.productName,
-                        specName: item.specName,
+                        specName: item.spec,
                         quantity: item.quantity,
-                        unitCost: item.unitCost
+                        unitCost: item.unitPrice
                     }))
                 };
                 await createInboundOrder(newInboundOrder);
@@ -189,9 +193,9 @@ const PurchaseOrderDetail: React.FC = () => {
 
       <Space direction="vertical" style={{ width: '100%' }} size="middle">
          {/* Actions */}
-         <Card variant="borderless">
+         <Card bordered={false}>
             <Space>
-               <Button type="primary" onClick={() => setShipModalOpen(true)}>订单发货</Button>
+               <Button type="primary" onClick={() => setShipModalOpen(true)} data-testid="ship-button">订单发货</Button>
                {purchaseType !== 'SelfDistribute' && (
                  <Button onClick={() => setPriceAdjustModalOpen(true)}>申请成本调价</Button>
                )}
@@ -258,8 +262,8 @@ const PurchaseOrderDetail: React.FC = () => {
                   { title: '商品名称', dataIndex: 'productName' },
                   { title: '规格', dataIndex: 'specName' },
                   { title: '数量', dataIndex: 'quantity' },
-                  { title: '成本单价', dataIndex: 'unitCost', render: (v) => `¥${v.toFixed(2)}` },
-                  { title: '合计', render: (_, r: any) => `¥${(r.quantity * r.unitCost).toFixed(2)}` }
+                  { title: '成本单价', dataIndex: 'unitPrice', render: (v) => `¥${v.toFixed(2)}` },
+                  { title: '合计', render: (_, r: any) => `¥${(r.quantity * r.unitPrice).toFixed(2)}` }
                ]}
             />
          </Card>

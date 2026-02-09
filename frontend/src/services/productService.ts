@@ -1,5 +1,13 @@
 import request from '../utils/request';
 
+export interface Sku {
+  id: number;
+  skuCode: string;
+  name: string;
+  costPrice: number;
+  supplierId?: number;
+}
+
 export interface Product {
   id?: number;
   skuCode?: string;
@@ -16,6 +24,7 @@ export interface Product {
   defaultSupplierId?: number;
   defaultSupplierName?: string; // Optional for display
   isBundle?: boolean;
+  skus?: Sku[];
 }
 
 export interface ProductBundleItem {
@@ -26,7 +35,7 @@ export interface ProductBundleItem {
 }
 
 export const productService = {
-  getAll: (params: { page: number; size: number; name?: string }) => {
+  getAll: (params: { page: number; size: number; name?: string; status?: string }) => {
     return request.get('/products', { params });
   },
 

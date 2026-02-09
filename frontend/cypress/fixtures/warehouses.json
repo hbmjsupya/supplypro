@@ -1,0 +1,40 @@
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "records": [
+      {
+        "id": 1,
+        "name": "Test Warehouse",
+        "code": "WH001",
+        "province": "Test Province",
+        "city": "Test City",
+        "district": "Test District",
+        "address": "Test Address",
+        "status": "ACTIVE",
+        "managers": [
+            {
+                "id": 100,
+                "username": "Manager",
+                "phone": "13800000000",
+                "email": "manager@warehouse.com"
+            }
+        ]
+      },
+      {
+        "id": 2,
+        "name": "Secondary Warehouse",
+        "code": "WH002",
+        "province": "Province2",
+        "city": "City2",
+        "district": "District2",
+        "address": "Address2",
+        "status": "ACTIVE",
+        "managers": []
+      }
+    ],
+    "total": 2,
+    "size": 10,
+    "current": 1
+  }
+}

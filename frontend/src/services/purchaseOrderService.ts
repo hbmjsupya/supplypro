@@ -1,107 +1,97 @@
-// Mock service for Purchase Orders
-import { delay } from './warehouseService';
+import request from '../utils/request';
 
 export interface PurchaseOrderItem {
-  productId: string;
-  skuId: string;
+  id?: number;
+  productId: number;
   productName: string;
-  specName: string;
+  skuCode?: string;
+  spec?: string;
   quantity: number;
-  unitCost: number;
+  unitPrice: number;
+  totalPrice?: number;
 }
 
 export interface PurchaseOrder {
-  id: string;
-  poNo: string;
-  supplierId: string;
-  supplierName: string;
-  expectedArrivalDate: string;
-  projectId?: string;
-  warehouseCode?: string; // Target Warehouse
-  warehouseRegion?: string; // Target Warehouse Region (Chinese)
-  items: PurchaseOrderItem[];
-  status: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'shipped';
-  createTime: string;
+  id?: number;
+  orderNo?: string;
+  supplierId?: number; // Keep for backward compatibility if needed, but prefer supplier object
+  supplier?: { id: number; name?: string };
+  supplierName?: string; // For display
+  type: 'STANDARD' | 'DROPSHIP' | 'JIT' | 'INBOUND';
   totalAmount: number;
-  attachments?: string[]; // file names
-  // Logistics Info
+  status: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'RECEIVED' | 'COMPLETED' | 'CANCELLED' | 'PENDING_SETTLEMENT';
+  settlementStatus?: 'UNSETTLED' | 'PARTIALLY_SETTLED' | 'SETTLED';
+  deliveryDate?: string;
+  warehouseId?: number;
+  warehouseName?: string; // For display
+  bizType?: string;
+  remark?: string;
+  items: PurchaseOrderItem[];
+  
+  // New fields
+  contactName?: string;
+  contactPhone?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  detailAddress?: string;
+  isManualAddress?: boolean;
+  attachments?: string; // JSON string of file URLs
+  
+  // Shipment Info
   logisticsCompany?: string;
-  trackingNo?: string;
-  logisticsFee?: number;
-  shippedTime?: string;
+  trackingNumber?: string;
+  shippedAt?: string;
+
+  createdAt?: string;
+  createdBy?: string;
 }
 
-export interface LogisticsTrack {
-  time: string;
-  status: string;
-  statusType?: string;
-  location: string;
-  description: string;
-  operator?: string;
+export interface PurchaseOrderSearchCriteria {
+  keyword?: string;
+  supplierName?: string;
+  project?: string; // Maybe not needed if removed from backend? Keep for safety
+  status?: string;
+  settlementStatus?: string;
+  bizType?: string;
 }
 
-export const getLogisticsTracks = async (trackingNo: string): Promise<LogisticsTrack[]> => {
-    await delay(500);
-    return [
-        {
-            time: '2023-10-27 14:30',
-            status: '运输中',
-            location: '杭州转运中心',
-            description: '快件已到达 杭州转运中心',
-            operator: '王五'
-        },
-        {
-            time: '2023-10-27 09:15',
-            status: '已发出',
-            location: '上海集散中心',
-            description: '快件已从 上海集散中心 发出',
-            operator: '李四'
-        },
-        {
-            time: '2023-10-26 18:20',
-            status: '已揽收',
-            location: '上海市',
-            description: '顺丰速运 已收取快件',
-            operator: '张三'
-        }
-    ];
-};
-
-const STORAGE_KEY = 'sc_purchase_orders';
-
-export const savePurchaseOrder = async (po: PurchaseOrder): Promise<void> => {
-  await delay(500);
-  const data = localStorage.getItem(STORAGE_KEY);
-  const orders: PurchaseOrder[] = data ? JSON.parse(data) : [];
-  orders.unshift(po);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
-};
-
-export const updatePurchaseOrder = async (po: PurchaseOrder): Promise<void> => {
-    await delay(300);
-    const data = localStorage.getItem(STORAGE_KEY);
-    let orders: PurchaseOrder[] = data ? JSON.parse(data) : [];
-    orders = orders.map(o => o.id === po.id ? po : o);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
-};
-
-export const shipPurchaseOrder = async (id: string, logisticsInfo: any): Promise<void> => {
-    await delay(300);
-    const data = localStorage.getItem(STORAGE_KEY);
-    const orders: PurchaseOrder[] = data ? JSON.parse(data) : [];
-    const order = orders.find(o => o.id === id);
-    if (order) {
-        order.status = 'shipped';
-        order.logisticsCompany = logisticsInfo.shipCompany;
-        order.trackingNo = logisticsInfo.shipNo;
-        order.logisticsFee = logisticsInfo.freight;
-        order.shippedTime = new Date().toISOString();
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
-    }
-};
-
-export const getPurchaseOrders = async (): Promise<PurchaseOrder[]> => {
-    await delay(300);
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+export interface PageResult<T> {
+  records: T[]; // Backend returns 'records' in the map
+  total: number;
+  pageNum: number;
+  pageSize: number;
+  pages: number;
 }
+
+export const getPurchaseOrders = (params: { page?: number; size?: number } & PurchaseOrderSearchCriteria) => {
+  return request.get<any, PageResult<PurchaseOrder>>('/purchase-orders', { params });
+};
+
+export const getPurchaseOrderById = (id: number) => {
+  return request.get<any, PurchaseOrder>(`/purchase-orders/${id}`);
+};
+
+export const createPurchaseOrder = (data: Partial<PurchaseOrder>) => {
+  return request.post<any, PurchaseOrder>('/purchase-orders', data);
+};
+
+export const updatePurchaseOrder = (id: number, data: Partial<PurchaseOrder>) => {
+  return request.put<any, PurchaseOrder>(`/purchase-orders/${id}`, data);
+};
+
+export const cancelPurchaseOrder = (id: number) => {
+  return request.put<any, any>(`/purchase-orders/${id}/cancel`);
+};
+
+export const shipPurchaseOrder = (id: number, data: any) => {
+  return request.put<any, any>(`/purchase-orders/${id}/ship`, data);
+};
+
+export const deletePurchaseOrder = (id: number) => {
+  return request.delete(`/purchase-orders/${id}`);
+};
+
+export const generateInboundPurchaseOrder = (data: Partial<PurchaseOrder>) => {
+  return request.post<any, PurchaseOrder>('/inboundPurchaseOrder/generate', data);
+};

@@ -1,73 +1,45 @@
-# React + TypeScript + Vite
+# SupplyPro Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Supply Chain Management System Frontend. Built with React + TypeScript + Vite + Ant Design.
 
-Currently, two official plugins are available:
+## Environment Requirements
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Node.js**: >= 18.0.0 (Recommended: v20+)
+- **npm**: >= 9.0.0
+- **Backend**: Running locally or via Docker on port 8080
 
-## React Compiler
+## Quick Start
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. **Install Dependencies**
+   ```bash
+   npm install
+   ```
 
-## Expanding the ESLint configuration
+2. **Start Development Server**
+   ```bash
+   npm run dev
+   ```
+   - Access: http://localhost:5173
+   - Backend API Proxy: http://localhost:8080
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+3. **Build for Production**
+   ```bash
+   npm run build
+   ```
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Troubleshooting
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Port Conflicts
+If port 5173 is occupied:
+- The terminal will show "Port 5173 is in use, trying another one..."
+- Check running processes: `lsof -i :5173` (macOS/Linux) or `netstat -ano | findstr :5173` (Windows)
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+### API Connection Issues
+- Ensure Backend is running: `curl -I http://localhost:8080/api/auth/signin`
+- Check `vite.config.ts` proxy settings.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Verification Script
+Run the built-in diagnostic script to check your environment:
+```bash
+node scripts/verify-env.js
 ```

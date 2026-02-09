@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Card, Space, Modal, Form, Input, Select, message, Tag, Dropdown, MenuProps, Drawer, Statistic, Row, Col, DatePicker, Descriptions } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, DownOutlined, AppstoreOutlined, FileTextOutlined } from '@ant-design/icons';
+import { Table, Button, Card, Space, Modal, Form, Input, Select, message, Tag, Dropdown, Cascader, DatePicker, Switch } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, DownOutlined, AppstoreOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { Warehouse, InventoryBatch } from '../../types/warehouse';
-import { getWarehouses, saveWarehouse, deleteWarehouse, getInventoryBatches } from '../../services/warehouseService';
-import dayjs from 'dayjs';
+import { getWarehouses, saveWarehouse, deleteWarehouse, getInventoryBatches, getNextWarehouseCode, updateWarehouseStatus } from '../../services/warehouseService';
 import { useNavigate } from 'react-router-dom';
 import PageDoc from '../../components/PageDoc';
+import request from '../../utils/request';
+import dayjs from 'dayjs';
 
-import { REGION_DATA, getRegionPath } from '../../utils/regionMap';
+import WarehouseSearch from './components/WarehouseSearch';
+
+const { RangePicker } = DatePicker;
 
 const WarehouseList: React.FC = () => {
   const navigate = useNavigate();
@@ -18,15 +21,55 @@ const WarehouseList: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form] = Form.useForm();
-
-  // Region Selection State
-  const [selectedProvince, setSelectedProvince] = useState<string>('');
-  const [selectedCity, setSelectedCity] = useState<string>('');
   
+  // New States
+  const [addressOptions, setAddressOptions] = useState<any[]>([]);
+  const [userOptions, setUserOptions] = useState<any[]>([]);
+  const [previewCode, setPreviewCode] = useState<string>('');
+  const [dateRange, setDateRange] = useState<[string, string] | undefined>(undefined);
+  const [statusLoading, setStatusLoading] = useState<Record<string, boolean>>({});
+  const [searchParams, setSearchParams] = useState<any>({});
+
+  // Load Address Data
+  useEffect(() => {
+    fetch('/data/china_regions.json')
+      .then(res => res.json())
+      .then(data => {
+        const transform = (node: any) => ({
+          value: node.code || node.name,
+          label: node.name,
+          children: node.children ? node.children.map(transform) : undefined
+        });
+        setAddressOptions(data.map(transform));
+      })
+      .catch(e => console.error("Failed to load regions", e));
+  }, []);
+
   const loadData = async () => {
     setLoading(true);
     try {
-      const [warehouses, batches] = await Promise.all([getWarehouses(), getInventoryBatches()]);
+      const params: any = { size: 20, ...searchParams }; 
+      if (dateRange) {
+        params.startDate = dateRange[0];
+        params.endDate = dateRange[1];
+      }
+      
+      // Transform search params
+      if (params.region && params.region.length > 0) {
+          params.provinceCode = params.region[0];
+          params.cityCode = params.region[1];
+          params.districtCode = params.region[2];
+          delete params.region;
+      }
+      if (params.productKeyword && Array.isArray(params.productKeyword)) {
+          // Take the first one for now as backend supports single keyword
+          if(params.productKeyword.length > 0) params.productKeyword = params.productKeyword[0];
+      }
+      if (params.statuses && Array.isArray(params.statuses)) {
+          params.statuses = params.statuses.join(',');
+      }
+
+      const [warehouses, batches] = await Promise.all([getWarehouses(params), getInventoryBatches()]);
       setData(warehouses);
       setInventory(batches);
     } catch (error) {
@@ -38,18 +81,66 @@ const WarehouseList: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [dateRange, searchParams]);
 
-  const handleAdd = () => {
-    setEditingId(null);
-    form.resetFields();
-    setIsModalOpen(true);
+  const fetchUsers = async (username: string) => {
+    try {
+        const res: any = await request.get('/users/list', { params: { username, size: 20 } });
+        const users = res.content || [];
+        setUserOptions(users.map((u: any) => ({ label: u.username, value: u.id })));
+    } catch (e) {
+        console.error(e);
+    }
   };
 
-  const handleEdit = (record: Warehouse) => {
-    setEditingId(record.id);
-    form.setFieldsValue(record);
+  const handleAdd = async () => {
+    setEditingId(null);
+    form.resetFields();
+    // Default Status is Active (hidden in form)
+    // Fetch Next Code
+    const code = await getNextWarehouseCode();
+    setPreviewCode(code);
+    form.setFieldValue('code', code); // Hidden or ReadOnly
     setIsModalOpen(true);
+    fetchUsers(''); // Load initial users
+  };
+
+  const handleEdit = async (record: Warehouse) => {
+    setEditingId(record.id);
+    
+    try {
+        // Fetch detail to get managerIds and full info
+        const res: any = await request.get(`/warehouses/${record.id}`);
+        const detail = res; // Interceptor already unwraps response.data
+        
+        // Construct region array from codes or names
+        // Prefer codes if available for Cascader
+        const region = [
+            detail.provinceCode || detail.province, 
+            detail.cityCode || detail.city, 
+            detail.districtCode || detail.district
+        ].filter(Boolean);
+        
+        // Pre-populate user options with existing managers so they display correctly
+        if(detail.managers) {
+             setUserOptions(detail.managers.map((m: any) => ({ label: m.username, value: m.id })));
+        }
+
+        form.resetFields(); // Reset first
+        form.setFieldsValue({
+             ...detail,
+             addressRegion: region,
+             managerIds: detail.managerIds || []
+        });
+        
+        // Set preview code
+        setPreviewCode(detail.code);
+        
+        setIsModalOpen(true);
+    } catch (e) {
+        console.error("Failed to load warehouse details", e);
+        message.error("加载仓库详情失败");
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -65,11 +156,23 @@ const WarehouseList: React.FC = () => {
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
-      const warehouse: Warehouse = {
-        id: editingId || Date.now().toString(),
-        createTime: editingId ? (data.find(w => w.id === editingId)?.createTime || new Date().toISOString()) : new Date().toISOString(),
-        ...values,
+      
+      const region = values.addressRegion || [];
+      const warehouse: any = {
+        id: editingId,
+        name: values.name,
+        code: editingId ? previewCode : undefined, // Code is immutable or auto-gen
+        address: values.address,
+        provinceCode: region[0],
+        cityCode: region[1],
+        districtCode: region[2],
+        province: findLabel(addressOptions, region[0]),
+        city: findLabel(addressOptions, region[1]),
+        district: findLabel(addressOptions, region[2]),
+        managerIds: values.managerIds,
+        status: editingId ? values.status : 'ACTIVE', // Default ACTIVE for new
       };
+      
       await saveWarehouse(warehouse);
       message.success(editingId ? '更新成功' : '创建成功');
       setIsModalOpen(false);
@@ -79,7 +182,7 @@ const WarehouseList: React.FC = () => {
     }
   };
 
-  // Helper to get stats
+  // Helper to get stats (Mock logic, adapting to real ID)
   const getWarehouseStats = (code: string) => {
     const batches = inventory.filter(b => b.warehouseCode === code);
     const skuCount = new Set(batches.map(b => b.skuId)).size;
@@ -87,51 +190,54 @@ const WarehouseList: React.FC = () => {
     return { skuCount, totalValue };
   };
 
-  // Menu Actions
-  const getActionMenu = (record: Warehouse): MenuProps => ({
-    items: [
-      {
-        key: 'goods',
-        label: '分仓商品列表',
-        icon: <AppstoreOutlined />,
-        onClick: () => {
-          navigate(`/supply-chain/warehouse-product?warehouseCode=${record.code}`);
-        }
-      },
-      {
-        type: 'divider',
-      },
-      {
-        key: 'edit',
-        label: '编辑',
-        icon: <EditOutlined />,
-        onClick: () => handleEdit(record)
-      },
-      {
-        key: 'toggle',
-        label: record.status === 'enabled' ? '禁用' : '启用',
-        danger: record.status === 'enabled',
-        onClick: async () => {
-           const updated = { ...record, status: record.status === 'enabled' ? 'disabled' : 'enabled' } as Warehouse;
-           await saveWarehouse(updated);
-           loadData();
-           message.success('状态已更新');
-        }
-      },
-      {
-        key: 'delete',
-        label: '删除',
-        danger: true,
-        icon: <DeleteOutlined />,
-        onClick: () => handleDelete(record.id)
+  const handleStatusChange = async (checked: boolean, record: Warehouse) => {
+    setStatusLoading(prev => ({ ...prev, [record.id]: true }));
+    try {
+        await updateWarehouseStatus(record.id, checked ? 'ACTIVE' : 'INACTIVE');
+        message.success('状态更新成功');
+        setData(prev => prev.map(item => 
+            item.id === record.id ? { ...item, status: checked ? 'ACTIVE' : 'INACTIVE' } : item
+        ));
+    } catch (e) {
+        message.error('状态更新失败');
+    } finally {
+        setStatusLoading(prev => ({ ...prev, [record.id]: false }));
+    }
+  };
+
+  // Helper to find label by value in Cascader options
+  const findLabel = (options: any[], value: string): string => {
+      if (!options || !value) return value;
+      for(const opt of options) {
+          if(opt.value === value) return opt.label;
+          if(opt.children) {
+              const found = findLabel(opt.children, value);
+              if(found && found !== value) return found;
+          }
       }
-    ]
-  });
+      return value;
+  };
+
+  const getRegionName = (record: Warehouse) => {
+      // If we have codes, try to lookup names
+      if (record.provinceCode && addressOptions.length > 0) {
+          const p = findLabel(addressOptions, record.provinceCode);
+          const c = findLabel(addressOptions, record.cityCode || '');
+          const d = findLabel(addressOptions, record.districtCode || '');
+          // If lookup failed (returned code), fallback to stored names or empty
+          const pName = p !== record.provinceCode ? p : (record.province || '');
+          const cName = c !== (record.cityCode || '') ? c : (record.city || '');
+          const dName = d !== (record.districtCode || '') ? d : (record.district || '');
+          return `${pName}${cName}${dName}`;
+      }
+      // Fallback to stored names
+      return `${record.province || ''}${record.city || ''}${record.district || ''}`;
+  };
 
   const columns: ColumnsType<Warehouse> = [
     { title: '库名', dataIndex: 'name', key: 'name' },
     { title: '仓库代码', dataIndex: 'code', key: 'code' },
-    { title: '所在地区', key: 'area', render: (_, record) => getRegionPath(record.province, record.city, record.district) },
+    { title: '所在地区', key: 'area', render: (_, record) => getRegionName(record) },
     { 
         title: '分仓商品数', 
         key: 'skuCount', 
@@ -142,26 +248,65 @@ const WarehouseList: React.FC = () => {
         key: 'totalValue', 
         render: (_, record) => `¥${getWarehouseStats(record.code).totalValue.toFixed(2)}` 
     },
-    { title: '管理员', dataIndex: 'admins', key: 'admins', render: (admins: string[]) => admins.join(', ') },
+    { title: '仓库管理员', dataIndex: 'managers', key: 'managers', render: (managers: any[]) => managers ? managers.map(m => m.username).join(', ') : '' },
+    { 
+        title: '创建时间', 
+        dataIndex: 'createdAt', 
+        key: 'createdAt',
+        render: (text) => text ? dayjs(text).format('YYYY-MM-DD HH:mm:ss') : '-'
+    },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       render: (status) => (
-        <Tag color={status === 'enabled' ? 'success' : 'error'}>
-          {status === 'enabled' ? '启用' : '禁用'}
+        <Tag color={status === 'ACTIVE' ? 'success' : 'error'}>
+          {status === 'ACTIVE' ? '启用' : '禁用'}
         </Tag>
       ),
     },
     {
       title: '操作',
       key: 'action',
+      width: 200,
       render: (_, record) => (
-        <Dropdown menu={getActionMenu(record)}>
-          <Button type="link">
-            操作 <DownOutlined />
-          </Button>
-        </Dropdown>
+        <Space>
+            <Switch 
+                checked={record.status === 'ACTIVE'}
+                loading={statusLoading[record.id]}
+                onChange={(checked) => handleStatusChange(checked, record)}
+                checkedChildren="启"
+                unCheckedChildren="禁"
+            />
+            <Dropdown menu={{
+                items: [
+                    {
+                        key: 'goods',
+                        label: '分仓商品列表',
+                        icon: <AppstoreOutlined />,
+                        onClick: () => navigate(`/supply-chain/warehouse-product?warehouseCode=${record.code}`)
+                    },
+                    { type: 'divider' },
+                    {
+                        key: 'edit',
+                        label: '编辑',
+                        icon: <EditOutlined />,
+                        onClick: () => handleEdit(record)
+                    },
+                    {
+                        key: 'delete',
+                        label: '删除',
+                        danger: true,
+                        icon: <DeleteOutlined />,
+                        onClick: () => handleDelete(record.id)
+                    }
+                ]
+            }}>
+              <Button type="link">
+                操作 <DownOutlined />
+              </Button>
+            </Dropdown>
+        </Space>
       ),
     },
   ];
@@ -170,19 +315,20 @@ const WarehouseList: React.FC = () => {
     <div style={{ padding: 24 }}>
       <PageDoc 
         pageTitle="仓储管理 > 分仓管理"
-        description={`
-          **功能说明**：
-          1. **仓库列表**：展示所有仓库的基础信息及实时库存统计（商品数、总成本）。
-          2. **分仓商品管理**：点击“操作”->“分仓商品列表”查看该仓库下的库存商品及流水记录。
-          3. **新增/编辑**：支持创建新仓库或修改现有仓库信息。
-          4. **状态管理**：启用/禁用仓库，禁用后不可进行出入库操作。
-        `}
-        fields={[
-          { name: 'skuCount', type: 'Number', desc: '分仓商品SKU总数 (实时)' },
-          { name: 'totalValue', type: 'Decimal', desc: '分仓库存总货值 (实时)' },
-        ]}
+        description="管理所有分仓信息、库存及管理员权限。"
       />
-      <Card title="分仓管理" extra={<Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增仓库</Button>}>
+      
+      <WarehouseSearch 
+        onSearch={(values) => setSearchParams(values)}
+        addressOptions={addressOptions}
+      />
+
+      <Card title="分仓管理" extra={
+          <Space>
+              <RangePicker onChange={(dates, dateStrings) => setDateRange(dates ? [dateStrings[0], dateStrings[1]] : undefined)} />
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增仓库</Button>
+          </Space>
+      }>
         <Table columns={columns} dataSource={data} rowKey="id" loading={loading} />
       </Card>
 
@@ -191,68 +337,50 @@ const WarehouseList: React.FC = () => {
         open={isModalOpen}
         onOk={handleOk}
         onCancel={() => setIsModalOpen(false)}
+        width={600}
       >
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="库名" rules={[{ required: true, message: '请输入库名' }, { max: 30 }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="code" label="仓库代码" rules={[{ required: true, message: '请输入代码' }]}>
-            <Input />
+          
+          <Form.Item label="仓库代码">
+             <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{previewCode || '生成中...'}</span>
+             <span style={{ marginLeft: 8, color: '#999', fontSize: '12px' }}>
+                 {editingId ? '(不可修改)' : '(自动生成)'}
+             </span>
           </Form.Item>
-          <Space>
-            <Form.Item name="province" label="省" rules={[{ required: true }]}>
-                <Select 
-                  style={{ width: 120 }} 
-                  options={REGION_DATA.map(p => ({ label: p.name, value: p.name }))} 
-                  onChange={(val) => {
-                    setSelectedProvince(val);
-                    setSelectedCity('');
-                    form.setFieldsValue({ city: undefined, district: undefined });
-                  }}
-                />
-            </Form.Item>
-            <Form.Item name="city" label="市" rules={[{ required: true }]}>
-                <Select 
-                  style={{ width: 120 }} 
-                  options={REGION_DATA.find(p => p.name === selectedProvince)?.children?.map(c => ({ label: c.name, value: c.name })) || []}
-                  onChange={(val) => {
-                    setSelectedCity(val);
-                    form.setFieldsValue({ district: undefined });
-                  }}
-                  disabled={!selectedProvince}
-                />
-            </Form.Item>
-            <Form.Item name="district" label="区" rules={[{ required: true }]}>
-                <Select 
-                  style={{ width: 120 }} 
-                  options={REGION_DATA.find(p => p.name === selectedProvince)?.children?.find(c => c.name === selectedCity)?.children?.map(d => ({ label: d.name, value: d.name })) || []}
-                  disabled={!selectedCity}
-                />
-            </Form.Item>
-          </Space>
+
+          <Form.Item name="addressRegion" label="所在地区" rules={[{ required: true, message: '请选择所在地区' }]}>
+            <Cascader options={addressOptions} placeholder="请选择省/市/区" />
+          </Form.Item>
+
           <Form.Item 
             name="address" 
             label="详细地址" 
             rules={[
-                { required: true, message: '请输入详细地址' },
-                { 
-                    validator: (_, value) => {
-                        if (value && !/\d/.test(value)) { // Simple check for number as "house number" proxy
-                            return Promise.reject(new Error('详细地址必须包含门牌号信息'));
-                        }
-                        return Promise.resolve();
-                    }
-                }
+                { required: true, message: '请输入详细地址' }
             ]}
           >
-            <Input.TextArea placeholder="请输入详细地址（必须包含门牌号）" />
+            <Input.TextArea placeholder="请输入详细地址" />
           </Form.Item>
-          <Form.Item name="admins" label="管理员" rules={[{ required: true }]}>
-            <Select mode="multiple" options={[{ label: 'Admin1', value: 'admin1' }, { label: 'User2', value: 'user2' }]} />
+          
+          <Form.Item name="managerIds" label="仓库管理员" rules={[{ required: true, message: '请选择管理员' }]}>
+            <Select 
+                mode="multiple" 
+                placeholder="搜索并选择管理员"
+                filterOption={false}
+                onSearch={fetchUsers}
+                showSearch
+                options={userOptions}
+            />
           </Form.Item>
-          <Form.Item name="status" label="状态" initialValue="enabled">
-            <Select options={[{ label: '启用', value: 'enabled' }, { label: '禁用', value: 'disabled' }]} />
-          </Form.Item>
+          
+          {editingId && (
+              <Form.Item name="status" label="状态" initialValue="ACTIVE">
+                <Select options={[{ label: '启用', value: 'ACTIVE' }, { label: '禁用', value: 'INACTIVE' }]} />
+              </Form.Item>
+          )}
         </Form>
       </Modal>
     </div>

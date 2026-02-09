@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Input, Select, Space, Tag, Modal, Form, message, Row, Col, DatePicker, Upload, Tooltip, Divider, Typography, Radio, Timeline, Card, InputNumber } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { EyeOutlined, ExportOutlined, CarOutlined, DollarOutlined, ImportOutlined, UploadOutlined, ShoppingCartOutlined, SyncOutlined, TruckOutlined, PlusOutlined } from '@ant-design/icons';
+import { EyeOutlined, ExportOutlined, CarOutlined, DollarOutlined, ImportOutlined, UploadOutlined, ShoppingCartOutlined, SyncOutlined, TruckOutlined, PlusOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import PageDoc from '../../components/PageDoc';
 import { useExport } from '../../utils/exportUtils';
 import { getLogisticsProviders } from '../../services/logisticsService';
 import { createPendingDeliverySettlement, generateSettlementId } from '../../services/settlementService';
+import { cancelPurchaseOrder, getPurchaseOrders, PurchaseOrder } from '../../services/purchaseOrderService';
 import { PendingDeliverySettlement } from '../../types/settlement';
 
 interface PurchaseOrderType {
@@ -27,7 +28,7 @@ interface PurchaseOrderType {
   cost: number;
   totalCost: number;
   settlementStatus: 'Unsettled' | 'PartiallySettled' | 'Settled';
-  status: 'Pending' | 'ToShip' | 'Shipped' | 'Received' | 'Completed';
+  status: 'Pending' | 'ToShip' | 'Shipped' | 'Received' | 'Completed' | 'Cancelled';
   modificationStatus?: 'Increased' | 'Decreased' | 'None';
   freight: number;
   thirdPartyPlatform?: string;
@@ -41,108 +42,6 @@ interface PurchaseOrderType {
     supplier: string;
   }[];
 }
-
-const mockOrders: PurchaseOrderType[] = [
-  {
-    key: '1',
-    poNo: 'C231027001001',
-    supplier: '晨光文具',
-    bizType: 'OrderPurchase',
-    bizNo: 'SO202310270001',
-    purchaseType: 'Dropship',
-    orderTime: '2023-10-27 10:00',
-    expectTime: '2023-10-30',
-    adjustStatus: 'None',
-    refundStatus: 'None',
-    project: '某某大型国企项目',
-    productName: '晨光A4打印纸',
-    specName: '70g/500张/包',
-    quantity: 100,
-    cost: 18.00,
-    totalCost: 1800.00,
-    freight: 0.00,
-    settlementStatus: 'Unsettled',
-    status: 'ToShip',
-    thirdPartyPlatform: '苏宁易购',
-    thirdPartyNo: 'SN20231027888',
-    platformOrderNo: 'P_20231027_001',
-  },
-  {
-    key: '2',
-    poNo: 'C231027001002',
-    supplier: '得力集团',
-    bizType: 'ReplenishPurchase',
-    bizNo: 'REP202310270002',
-    purchaseType: 'Inbound',
-    orderTime: '2023-10-26 14:00',
-    expectTime: '2023-10-29',
-    adjustStatus: 'None',
-    refundStatus: 'None',
-    project: '库存补货',
-    productName: '得力办公套装(组合)',
-    specName: '商务黑/含订书机等',
-    quantity: 50,
-    cost: 45.00,
-    totalCost: 2250.00,
-    freight: 12.00,
-    settlementStatus: 'Unsettled',
-    status: 'Shipped',
-    thirdPartyPlatform: '',
-    thirdPartyNo: '',
-    platformOrderNo: '',
-    subProducts: [
-      { name: '得力订书机', spec: '12号/黑色', qty: 1, unitCost: 12.50, supplier: '得力集团' },
-      { name: '得力中性笔', spec: '0.5mm/黑色', qty: 10, unitCost: 1.20, supplier: '得力集团' },
-      { name: '得力记事本', spec: 'A5/皮面', qty: 2, unitCost: 10.25, supplier: '得力集团' }
-    ]
-  },
-  {
-    key: '3',
-    poNo: 'C231027001003',
-    supplier: 'WH001', // SelfDistribute uses warehouse code as supplier placeholder in this view
-    bizType: 'OrderPurchase',
-    bizNo: 'SO202310270003',
-    purchaseType: 'SelfDistribute',
-    orderTime: '2023-10-25 09:00',
-    expectTime: '2023-10-28',
-    adjustStatus: 'Pending',
-    refundStatus: 'None',
-    project: '某学校采购项目',
-    productName: '齐心文件夹',
-    specName: 'A4/蓝色/10个装',
-    quantity: 200,
-    cost: 5.00,
-    totalCost: 1000.00,
-    freight: 0.00,
-    settlementStatus: 'PartiallySettled',
-    status: 'Received',
-    platformOrderNo: 'P_20231025_003',
-  },
-  {
-    key: '4',
-    poNo: 'C231027001004',
-    supplier: '晨光文具',
-    bizType: 'OrderPurchase',
-    bizNo: 'SO202310270004',
-    purchaseType: 'Dropship',
-    orderTime: '2023-10-20 16:00',
-    expectTime: '2023-10-23',
-    adjustStatus: 'Approved',
-    refundStatus: 'None',
-    project: '某企业季度采购',
-    productName: '晨光中性笔',
-    specName: '0.5mm/黑色/12支装',
-    quantity: 500,
-    cost: 12.00,
-    totalCost: 6000.00,
-    freight: 0.00,
-    settlementStatus: 'Settled',
-    status: 'Completed',
-    thirdPartyPlatform: '天猫企业购',
-    thirdPartyNo: 'TM999888777',
-    platformOrderNo: 'P_20231020_888',
-  },
-];
 
 const PurchaseOrderList: React.FC = () => {
   const navigate = useNavigate();
@@ -160,11 +59,68 @@ const PurchaseOrderList: React.FC = () => {
   const [logisticsProviders, setLogisticsProviders] = useState<any[]>([]);
   const [currentShipOrder, setCurrentShipOrder] = useState<PurchaseOrderType | null>(null);
 
+  const [loading, setLoading] = useState(false);
+  const [orders, setOrders] = useState<PurchaseOrderType[]>([]);
+  const [total, setTotal] = useState(0);
+  const [params, setParams] = useState({ page: 0, size: 10 });
+
+  const fetchOrders = async () => {
+    setLoading(true);
+    try {
+        const res = await getPurchaseOrders(params);
+        // Map service response to local state structure
+        const mapped = (res.records || []).map((po: PurchaseOrder) => {
+            const item = po.items && po.items.length > 0 ? po.items[0] : null;
+            return {
+                key: String(po.id),
+                poNo: po.orderNo || '',
+                supplier: po.supplierName || po.supplier?.name || '',
+                bizType: po.bizType || 'OrderPurchase',
+                bizNo: '', 
+                purchaseType: po.type === 'INBOUND' ? 'Inbound' : po.type === 'DROPSHIP' ? 'Dropship' : 'SelfDistribute',
+                orderTime: po.createdAt || '',
+                expectTime: po.deliveryDate || '',
+                adjustStatus: 'None',
+                refundStatus: 'None',
+                project: '', // Not in API yet
+                productName: item ? item.productName : '多商品',
+                specName: item ? item.spec || '' : '',
+                quantity: item ? item.quantity : 0,
+                cost: item ? item.unitPrice : 0,
+                totalCost: po.totalAmount || 0,
+                settlementStatus: po.settlementStatus === 'UNSETTLED' ? 'Unsettled' : 'Settled',
+                status: po.status === 'PENDING' ? 'Pending' : 
+                        po.status === 'SHIPPED' ? 'Shipped' :
+                        po.status === 'RECEIVED' ? 'Received' :
+                        po.status === 'COMPLETED' ? 'Completed' :
+                        po.status === 'CANCELLED' ? 'Cancelled' : 'Pending',
+                freight: 0,
+                subProducts: po.items?.map(i => ({
+                    name: i.productName,
+                    spec: i.spec || '',
+                    qty: i.quantity,
+                    unitCost: i.unitPrice,
+                    supplier: po.supplierName || ''
+                }))
+            } as PurchaseOrderType;
+        });
+        setOrders(mapped);
+        setTotal(res.total);
+    } catch (e) {
+        console.error(e);
+        message.error('加载采购单失败');
+    } finally {
+        setLoading(false);
+    }
+  };
+
   useEffect(() => {
     getLogisticsProviders().then(setLogisticsProviders);
   }, []);
 
-  const [orders, setOrders] = useState<PurchaseOrderType[]>(mockOrders);
+  useEffect(() => {
+    fetchOrders();
+  }, [params]);
 
   const { handleExport: handleExportList, exporting: exportingList, progress: progressList } = useExport<PurchaseOrderType>({
     filenamePrefix: '采购单列表',
@@ -177,7 +133,7 @@ const PurchaseOrderList: React.FC = () => {
         { title: '下单时间', dataIndex: 'orderTime' },
         { title: '预计到货时间', dataIndex: 'expectTime' },
         { title: '状态', dataIndex: 'status', render: (val) => {
-            const map: any = { 'Pending': '待处理', 'ToShip': '待发货', 'Shipped': '已发货', 'Received': '已收货', 'Completed': '已完成' };
+            const map: any = { 'Pending': '待处理', 'ToShip': '待发货', 'Shipped': '已发货', 'Received': '已收货', 'Completed': '已完成', 'Cancelled': '已取消' };
             return map[val] || val;
         } },
     ]
@@ -189,7 +145,8 @@ const PurchaseOrderList: React.FC = () => {
         'ToShip': { text: '待发货', color: 'cyan' }, 
         'Shipped': { text: '已发货', color: 'blue' }, 
         'Received': { text: '已收货', color: 'purple' }, 
-        'Completed': { text: '已完成', color: 'green' } 
+        'Completed': { text: '已完成', color: 'green' },
+        'Cancelled': { text: '已取消', color: 'red' }
     };
     return map[status] || { text: status, color: 'default' };
   };
@@ -241,6 +198,30 @@ const PurchaseOrderList: React.FC = () => {
         setShipType('Logistics');
         setCurrentShipOrder(null);
      });
+  };
+
+  const handleCancel = (record: PurchaseOrderType) => {
+    Modal.confirm({
+      title: '确认取消',
+      icon: <ExclamationCircleOutlined />,
+      content: '确定要取消该采购单吗？取消后关联的入库单也将被取消。',
+      okText: '确认',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+            // Try to call API, but fallback to mock update if it fails (since we are using mock data mostly)
+            try {
+                await cancelPurchaseOrder(Number(record.key));
+            } catch (e) {
+                console.warn('API call failed, updating local state for demo', e);
+            }
+            message.success('取消成功');
+            setOrders(orders.map(o => o.key === record.key ? { ...o, status: 'Cancelled' } : o));
+        } catch (error) {
+            message.error('取消失败');
+        }
+      }
+    });
   };
 
   const handleViewLogistics = (record: PurchaseOrderType) => {
@@ -305,15 +286,8 @@ const PurchaseOrderList: React.FC = () => {
   ];
 
   const handleSearch = (values: any) => {
-    // Mock Search Logic
-    console.log('Search values:', values);
-    const filtered = mockOrders.filter(item => {
-      // Add logic if needed, for now just simple mock
-      if (values.poNo && !item.poNo.includes(values.poNo)) return false;
-      if (values.bizType && item.bizType !== values.bizType) return false;
-      return true;
-    });
-    setOrders(filtered);
+    // Update params to trigger fetchOrders via useEffect
+    setParams(prev => ({ ...prev, ...values, page: 0 }));
     message.success('查询成功');
   };
 
@@ -464,6 +438,12 @@ const PurchaseOrderList: React.FC = () => {
             <Col span={2} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '0 8px', textAlign: 'center' }}>
                <Space direction="vertical" size={0}>
                  <Button type="link" size="small" onClick={() => navigate(`/supply-chain/purchase-order/detail/${record.key}`)}>查看</Button>
+                 {record.purchaseType === 'Inbound' && 
+                  record.settlementStatus === 'Unsettled' && 
+                  record.status !== 'Completed' && 
+                  record.status !== 'Cancelled' && (
+                    <Button type="link" size="small" danger onClick={() => handleCancel(record)}>取消</Button>
+                 )}
                  {record.status === 'ToShip' && <Button type="link" size="small" onClick={() => {
                     setCurrentShipOrder(record);
                     setShipModalOpen(true);

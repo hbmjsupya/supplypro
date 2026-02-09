@@ -140,10 +140,10 @@ const InboundOrderDetail: React.FC = () => {
             
             if (inbound) {
                 const [purchaseOrders, warehouses] = await Promise.all([
-                    getPurchaseOrders(),
+                    getPurchaseOrders({}),
                     getWarehouses()
                 ]);
-                const po = purchaseOrders.find(p => p.poNo === inbound.poNo);
+                const po = purchaseOrders.records.find(p => p.orderNo === inbound.poNo);
                 const wh = warehouses.find(w => w.code === inbound.warehouseCode);
                 
                 setOrderInfo({
@@ -160,10 +160,10 @@ const InboundOrderDetail: React.FC = () => {
                     // Logistics from PO
                     logistics: po ? {
                         company: po.logisticsCompany || '暂无',
-                        trackingNo: po.trackingNo || '暂无',
-                        status: po.status === 'shipped' ? '运输中' : '待发货',
-                        shippedTime: po.shippedTime,
-                        fee: po.logisticsFee
+                        trackingNo: po.trackingNumber || '暂无',
+                        status: po.status === 'SHIPPED' ? '运输中' : '待发货',
+                        shippedTime: po.shippedAt,
+                        fee: 0 // Mock fee as it is not in PO
                     } : null
                 });
             } else {

@@ -60,7 +60,6 @@ const ProductPoolList: React.FC = () => {
   const [pageSize, setPageSize] = useState(10);
   
   // Restore missing states
-  const [isPriceModalOpen, setIsPriceModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [form] = Form.useForm();
   
@@ -127,6 +126,7 @@ const ProductPoolList: React.FC = () => {
                   categoryCode: params.categoryCode,
                   taxClass: params.taxClass,
                   status: params.status,
+                  type: 'NORMAL', // Explicitly request only NORMAL products
                   minPrice: params.minPrice,
                   maxPrice: params.maxPrice,
                   createdAfter: params.dateRange?.[0]?.format('YYYY-MM-DDTHH:mm:ss'),
@@ -369,6 +369,7 @@ const ProductPoolList: React.FC = () => {
       
       // Handle specific validation errors from backend
       const resData = error.response?.data;
+
       if (resData && resData.code === 400 && resData.message) {
           if (resData.message.includes('必填项')) {
               setErrorMessage(resData.message);
@@ -463,7 +464,7 @@ const ProductPoolList: React.FC = () => {
             title={content} 
             placement="top" 
             color="#000"
-            overlayStyle={{ maxWidth: '500px' }}
+            styles={{ root: { maxWidth: '500px' } }}
           >
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }}>{skus.length}种规格</span>
           </Tooltip>
@@ -740,25 +741,6 @@ const ProductPoolList: React.FC = () => {
         scroll={{ x: 'max-content' }}
       />
       
-      <Modal 
-         title="各规格成本价详情" 
-         open={isPriceModalOpen} 
-         onCancel={() => setIsPriceModalOpen(false)}
-         footer={null}
-      >
-         <Table 
-            dataSource={[
-               { spec: '红色', cost: 18.00 },
-               { spec: '蓝色', cost: 20.00 }
-            ]}
-            columns={[
-               { title: '规格', dataIndex: 'spec' },
-               { title: '成本价', dataIndex: 'cost', render: (val) => `¥${val}` }
-            ]}
-            pagination={false}
-         />
-      </Modal>
-
       <Modal
         title="批量变价导入"
         open={isImportModalOpen}

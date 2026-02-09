@@ -20,6 +20,7 @@ import ProductPoolList from './pages/ProductPool/ProductPoolList';
 import ProductAdd from './pages/ProductPool/ProductAdd';
 import PurchaseOrderList from './pages/PurchaseOrder/PurchaseOrderList';
 import PurchaseOrderCreate from './pages/PurchaseOrder/PurchaseOrderCreate';
+import InboundOrderCreate from './pages/PurchaseOrder/InboundOrderCreate';
 import PurchaseOrderDetail from './pages/PurchaseOrder/PurchaseOrderDetail';
 import PurchaseOrderLogistics from './pages/PurchaseOrder/PurchaseOrderLogistics';
 import PlatformConfirmList from './pages/PurchaseOrder/PlatformConfirmList';
@@ -92,6 +93,7 @@ const App: React.FC = () => {
            
            <Route path="/supply-chain/purchase-order" element={<PurchaseOrderList />} />
            <Route path="/supply-chain/purchase-order/create" element={<PurchaseOrderCreate />} />
+           <Route path="/supply-chain/purchase-order/create-inbound" element={<InboundOrderCreate />} />
            <Route path="/supply-chain/purchase-order/detail/:id" element={<PurchaseOrderDetail />} />
            <Route path="/supply-chain/purchase-order/logistics/:id" element={<PurchaseOrderLogistics />} />
            

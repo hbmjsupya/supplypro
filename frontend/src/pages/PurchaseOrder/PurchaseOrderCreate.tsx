@@ -1,20 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Form, Input, DatePicker, Select, Button, Table, InputNumber, Upload, message, Modal, Space, Typography, Row, Col } from 'antd';
 import { PlusOutlined, UploadOutlined, DeleteOutlined, CopyOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { savePurchaseOrder } from '../../services/purchaseOrderService';
+import { createPurchaseOrder, generateInboundPurchaseOrder } from '../../services/purchaseOrderService';
 import type { PurchaseOrder, PurchaseOrderItem } from '../../services/purchaseOrderService';
 import { getWarehouses } from '../../services/warehouseService';
+import SupplierSelect from './components/SupplierSelect';
+import ProductPoolModal, { FlattenedSku } from './components/ProductPoolModal';
 import { getRegionPath } from '../../utils/regionMap';
 import dayjs from 'dayjs';
-
-// Mock Product Data
-const MOCK_PRODUCTS = [
-  { id: 'P001', name: '无线鼠标', sku: 'SKU001', spec: '黑色', cost: 45.00 },
-  { id: 'P001', name: '无线鼠标', sku: 'SKU002', spec: '白色', cost: 45.00 },
-  { id: 'P002', name: '机械键盘', sku: 'SKU003', spec: '青轴', cost: 280.00 },
-  { id: 'P003', name: '显示器', sku: 'SKU004', spec: '27寸 4K', cost: 1200.00 },
-];
 
 const PurchaseOrderCreate: React.FC = () => {
   const [form] = Form.useForm();
@@ -22,25 +16,44 @@ const PurchaseOrderCreate: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<number | undefined>();
   
-  // Product Search State
-  const [productSearch, setProductSearch] = useState({ name: '', spec: '', sku: '' });
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const [selectedModalProducts, setSelectedModalProducts] = useState<any[]>([]);
+  // Removed MOCK_PRODUCTS and related search state
 
-  React.useEffect(() => {
-    getWarehouses().then(setWarehouses);
+  useEffect(() => {
+    // Filter only ACTIVE warehouses
+    getWarehouses({ statuses: 'ACTIVE' })
+      .then(setWarehouses)
+      .catch(err => {
+        console.error('Failed to load warehouses', err);
+        message.error('加载仓库列表失败: ' + (err.response?.data?.message || err.message));
+      });
   }, []);
 
   const handleWarehouseChange = (code: string) => {
     const wh = warehouses.find(w => w.code === code);
     if (wh) {
       const regionPath = getRegionPath(wh.province, wh.city, wh.district);
+      
+      // Contact name resolution: managers (fullName) > managers (username) > admins (legacy)
+      let contactName = '库管员';
+      if (wh.managers && wh.managers.length > 0) {
+          contactName = wh.managers[0].fullName || wh.managers[0].username;
+      } else if (wh.admins) {
+          // Handle legacy admins field (string or array)
+          if (Array.isArray(wh.admins)) {
+              contactName = wh.admins[0];
+          } else if (typeof wh.admins === 'string') {
+              // Prevent truncation bug (e.g. "admin"[0] = "a")
+              contactName = (wh.admins as string).split(',')[0];
+          }
+      }
+
       form.setFieldsValue({
         warehouseRegion: regionPath,
         address: `${regionPath} ${wh.address}`, // Use Chinese region + address detail
-        contact: wh.admins[0] || '库管员',
-        phone: '13800138000' // Mock phone
+        contact: contactName,
+        phone: '13800138000' // Placeholder if not available
       });
     }
   };
@@ -53,111 +66,125 @@ const PurchaseOrderCreate: React.FC = () => {
     }
   };
 
-  const handleBatchSelectConfirm = () => {
+  const handleProductSelect = (selectedSkus: FlattenedSku[]) => {
     const currentItems = form.getFieldValue('items') || [];
     const newItems: PurchaseOrderItem[] = [];
     
-    selectedModalProducts.forEach(record => {
-        if (!currentItems.find((item: any) => item.skuId === record.sku)) {
+    // Auto-fill supplier if not selected (using the first item's default supplier)
+    if (!selectedSupplierId && selectedSkus.length > 0) {
+        const defaultSupId = selectedSkus[0].defaultSupplierId;
+        if (defaultSupId) {
+            setSelectedSupplierId(defaultSupId);
+            form.setFieldsValue({ supplier: defaultSupId });
+            message.info('已自动填充默认供应商');
+        }
+    }
+
+    selectedSkus.forEach(record => {
+        // Avoid duplicates based on SKU Code
+        if (!currentItems.find((item: any) => item.skuCode === record.skuCode)) {
             newItems.push({
-                productId: record.id,
-                skuId: record.sku,
-                productName: record.name,
-                specName: record.spec,
+                productId: record.productId,
+                productName: record.productName,
+                skuCode: record.skuCode,
+                spec: record.specName,
                 quantity: 1,
-                unitCost: record.cost,
+                unitPrice: record.costPrice,
             });
         }
     });
 
-    if (newItems.length === 0 && selectedModalProducts.length > 0) {
+    if (newItems.length === 0 && selectedSkus.length > 0) {
         message.warning('所选商品已在列表中');
     } else {
+        const updatedItems = [...currentItems, ...newItems];
         form.setFieldsValue({
-            items: [...currentItems, ...newItems]
+            items: updatedItems
         });
         message.success(`已添加 ${newItems.length} 个商品`);
     }
     
     setProductModalOpen(false);
-    setSelectedRowKeys([]);
-    setSelectedModalProducts([]);
+  };
+
+  const onValuesChange = (changedValues: any, allValues: any) => {
+      if (changedValues.supplier) {
+          setSelectedSupplierId(changedValues.supplier);
+      }
   };
 
   const onFinish = async (values: any) => {
     setLoading(true);
     try {
-      // Split Logic: One PO per Item (Spec)
+      const wh = warehouses.find(w => w.code === values.warehouseCode);
+
+      // Split Logic: One PO per Item (Spec) - Preserving business rule from original file
       const promises = values.items.map(async (item: any) => {
-          const totalAmount = item.quantity * item.unitCost;
-          const newPO: PurchaseOrder = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-            poNo: `PO-${dayjs().format('YYYYMMDD')}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
-            supplierId: values.supplier,
-            supplierName: values.supplier === 'SUP001' ? '联想（北京）有限公司' : '得力集团',
-            expectedArrivalDate: values.expectedArrivalDate.format('YYYY-MM-DD'),
-            projectId: values.projectId,
-            items: [item], // Single item per PO
-            status: 'pending_approval',
-            createTime: new Date().toISOString(),
+          const totalAmount = item.quantity * item.unitPrice;
+          
+          const newPO: Partial<PurchaseOrder> = {
+            // let backend generate ID and OrderNo
+            supplierId: values.supplier, 
+            // supplierName will be handled by backend or derived
+            deliveryDate: values.expectedArrivalDate.format('YYYY-MM-DD'),
+            type: 'INBOUND', 
+            items: [{
+                productId: item.productId,
+                productName: item.productName,
+                skuCode: item.skuCode,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                totalPrice: totalAmount,
+                spec: item.spec
+            }],
+            status: 'PENDING',
             totalAmount: totalAmount,
-            attachments: values.attachments?.fileList?.map((f: any) => f.name) || [],
+            attachments: JSON.stringify(values.attachments?.fileList?.map((f: any) => f.name) || []),
+            warehouseId: wh?.id,
+            warehouseName: wh?.name,
+            contactName: values.contact,
+            contactPhone: values.phone,
+            province: wh?.province,
+            city: wh?.city,
+            district: wh?.district,
+            detailAddress: wh?.address,
+            // Add other fields as necessary
           };
-          return savePurchaseOrder(newPO);
+          return generateInboundPurchaseOrder(newPO);
       });
 
       await Promise.all(promises);
       
-      message.success(`成功创建 ${values.items.length} 个采购单（按规格拆分）`);
+      message.success('入库采购单已生成');
       navigate('/supply-chain/purchase-order');
-    } catch (error) {
-      message.error('创建失败');
+    } catch (error: any) {
+      console.error(error);
+      const errorMsg = error.response?.data?.message || error.message || '未知错误';
+      message.error(`创建失败: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredProducts = MOCK_PRODUCTS.filter(p => {
-      return (
-          (!productSearch.name || p.name.includes(productSearch.name)) &&
-          (!productSearch.spec || p.spec.includes(productSearch.spec)) &&
-          (!productSearch.sku || p.sku.includes(productSearch.sku))
-      );
-  });
-
   return (
     <div style={{ padding: 24 }}>
-      <Card title="新增采购单" variant="borderless">
+      <Card title="新增采购单" bordered={false}>
         <Form
           form={form}
           layout="vertical"
           onFinish={onFinish}
+          onValuesChange={onValuesChange}
           initialValues={{ items: [] }}
         >
           <Card type="inner" title="基本信息" style={{ marginBottom: 24 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 24 }}>
               <Form.Item name="supplier" label="供应商" rules={[{ required: true }]}>
-                <Select
-                  showSearch
-                  placeholder="请选择供应商"
-                  options={[
-                    { label: '联想（北京）有限公司', value: 'SUP001' },
-                    { label: '得力集团', value: 'SUP002' },
-                  ]}
-                />
+                <SupplierSelect />
               </Form.Item>
               <Form.Item name="expectedArrivalDate" label="预计到货日期" rules={[{ required: true }]}>
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
-              <Form.Item name="projectId" label="归属项目">
-                <Select
-                  placeholder="请选择项目"
-                  options={[
-                    { label: '总部办公物资采购', value: 'PROJ001' },
-                    { label: '新职场开办', value: 'PROJ002' },
-                  ]}
-                />
-              </Form.Item>
+              {/* Project field removed as it was hardcoded and no service exists */}
               <Form.Item name="warehouseCode" label="入库仓库" rules={[{ required: true }]}>
                 <Select 
                     placeholder="选择入库分仓"
@@ -210,7 +237,7 @@ const PurchaseOrderCreate: React.FC = () => {
                       title: '规格',
                       dataIndex: 'spec',
                       render: (_, field) => (
-                        <Form.Item {...field} name={[field.name, 'specName']} style={{ marginBottom: 0 }}>
+                        <Form.Item {...field} name={[field.name, 'spec']} style={{ marginBottom: 0 }}>
                           <Input readOnly variant="borderless" />
                         </Form.Item>
                       ),
@@ -232,12 +259,12 @@ const PurchaseOrderCreate: React.FC = () => {
                     },
                     {
                       title: '单价(元)',
-                      dataIndex: 'unitCost',
+                      dataIndex: 'unitPrice',
                       width: 150,
                       render: (_, field) => (
                         <Form.Item
                           {...field}
-                          name={[field.name, 'unitCost']}
+                          name={[field.name, 'unitPrice']}
                           rules={[{ required: true, message: '请输入单价' }]}
                           style={{ marginBottom: 0 }}
                         >
@@ -250,7 +277,7 @@ const PurchaseOrderCreate: React.FC = () => {
                       key: 'subtotal',
                       render: (_, field) => {
                           const qty = form.getFieldValue(['items', field.name, 'quantity']) || 0;
-                          const cost = form.getFieldValue(['items', field.name, 'unitCost']) || 0;
+                          const cost = form.getFieldValue(['items', field.name, 'unitPrice']) || 0;
                           return (qty * cost).toFixed(2);
                       }
                     },
@@ -270,66 +297,18 @@ const PurchaseOrderCreate: React.FC = () => {
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit" loading={loading}>
-                提交审批
+                生成入库采购单
               </Button>
               <Button onClick={() => navigate('/supply-chain/purchase-order')}>取消</Button>
             </Space>
           </Form.Item>
         </Form>
 
-        <Modal
-          title="选择商品 (支持多选)"
+        <ProductPoolModal
           open={productModalOpen}
           onCancel={() => setProductModalOpen(false)}
-          onOk={handleBatchSelectConfirm}
-          width={800}
-        >
-          <div style={{ marginBottom: 16 }}>
-              <Row gutter={16}>
-                  <Col span={8}>
-                      <Input 
-                        placeholder="商品名称" 
-                        value={productSearch.name} 
-                        onChange={e => setProductSearch({...productSearch, name: e.target.value})}
-                        prefix={<SearchOutlined />}
-                      />
-                  </Col>
-                  <Col span={8}>
-                      <Input 
-                        placeholder="规格" 
-                        value={productSearch.spec} 
-                        onChange={e => setProductSearch({...productSearch, spec: e.target.value})}
-                      />
-                  </Col>
-                  <Col span={8}>
-                      <Input 
-                        placeholder="SKU ID" 
-                        value={productSearch.sku} 
-                        onChange={e => setProductSearch({...productSearch, sku: e.target.value})}
-                      />
-                  </Col>
-              </Row>
-          </div>
-          <Table
-            dataSource={filteredProducts}
-            rowKey="sku"
-            rowSelection={{
-                type: 'checkbox',
-                selectedRowKeys,
-                onChange: (keys, rows) => {
-                    setSelectedRowKeys(keys);
-                    setSelectedModalProducts(rows);
-                }
-            }}
-            columns={[
-              { title: '商品名称', dataIndex: 'name' },
-              { title: '规格', dataIndex: 'spec' },
-              { title: 'SKU', dataIndex: 'sku' },
-              { title: '参考成本价', dataIndex: 'cost', render: (val) => `¥${val.toFixed(2)}` },
-            ]}
-            pagination={{ pageSize: 5 }}
-          />
-        </Modal>
+          onOk={handleProductSelect}
+        />
       </Card>
     </div>
   );

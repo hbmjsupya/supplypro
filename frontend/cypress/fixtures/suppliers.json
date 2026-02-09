@@ -1,0 +1,32 @@
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "content": [
+      {
+        "id": 1,
+        "name": "Test Supplier",
+        "code": "SUP001",
+        "contactName": "Supplier Contact",
+        "phone": "1234567890",
+        "email": "test@supplier.com",
+        "currency": "CNY",
+        "status": "ACTIVE"
+      },
+      {
+        "id": 2,
+        "name": "Another Supplier",
+        "code": "SUP002",
+        "contactName": "Another Contact",
+        "phone": "0987654321",
+        "email": "another@supplier.com",
+        "currency": "USD",
+        "status": "ACTIVE"
+      }
+    ],
+    "totalElements": 2,
+    "size": 10,
+    "number": 0,
+    "totalPages": 1
+  }
+}
