@@ -27,7 +27,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
             long count = categoryRepository.count();
             if (count == 0) {
                 log.info("No categories found. Initializing mock data...");
-                syncCategories();
+                // syncCategories();
             }
         }
         return categoryRepository.findByParentId(parentId);

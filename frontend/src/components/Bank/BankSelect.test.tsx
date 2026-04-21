@@ -37,6 +37,7 @@ describe('BankSelect Component', () => {
   });
 
   test('renders with placeholder', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (getBanks as any).mockResolvedValue({ content: [] });
     render(<BankSelect />);
     expect(screen.getByRole('combobox')).toBeInTheDocument();
@@ -44,6 +45,7 @@ describe('BankSelect Component', () => {
   });
 
   test('loads and displays banks', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (getBanks as any).mockResolvedValue(mockBanks);
     render(<BankSelect />);
 
@@ -63,6 +65,7 @@ describe('BankSelect Component', () => {
   });
 
   test('displays error message on fetch failure', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (getBanks as any).mockRejectedValue(new Error('Fetch failed'));
     render(<BankSelect />);
     

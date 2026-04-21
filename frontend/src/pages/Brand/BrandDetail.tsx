@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Card, Space, Table, Breadcrumb, message, Upload, Modal, Select } from 'antd';
-import { PlusOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Card, Space, Table, Breadcrumb, message, Modal, Select } from 'antd';
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import PageDoc from '../../components/PageDoc';
+import ImageUpload from '../../components/ImageUpload';
 import { getBrandById, createBrand, updateBrand } from '../../services/brandService';
 import { getSuppliers, SupplierDTO } from '../../services/supplierService';
 
@@ -28,6 +29,7 @@ const BrandDetail: React.FC = () => {
         const res = await getSuppliers({ size: 1000, status: 'ACTIVE' });
         setAllSuppliers(res.content || []);
       } catch (error) {
+        console.error(error);
         message.error('加载供应商列表失败');
       }
     };
@@ -53,6 +55,7 @@ const BrandDetail: React.FC = () => {
     }
   }, [id, form]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onFinish = async (values: any) => {
     setLoading(true);
     try {
@@ -74,6 +77,7 @@ const BrandDetail: React.FC = () => {
       }
       navigate('/supply-chain/brand');
     } catch (error) {
+      console.error(error);
       message.error('提交失败，请重试');
     } finally {
       setLoading(false);
@@ -157,9 +161,10 @@ const BrandDetail: React.FC = () => {
               <Input placeholder="请输入商标注册号" />
            </Form.Item>
            <Form.Item name="icon" label="品牌图标">
-              <Upload>
-                 <Button icon={<UploadOutlined />}>上传图标</Button>
-              </Upload>
+              <ImageUpload 
+                placeholder="点击上传品牌图标"
+                maxSize={5}
+              />
            </Form.Item>
         </Card>
 
@@ -209,7 +214,7 @@ const BrandDetail: React.FC = () => {
               placeholder="请输入供应商名称搜索"
               optionFilterProp="children"
               onChange={(value: number) => setSelectedSupplierId(value)}
-              filterOption={(input: string, option: any) =>
+              filterOption={(input: string, option: { label: string } | undefined) =>
                 (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
               }
               options={allSuppliers.map(s => ({ value: s.id, label: s.name }))}

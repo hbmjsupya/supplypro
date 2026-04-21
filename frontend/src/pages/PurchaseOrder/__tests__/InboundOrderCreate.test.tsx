@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import InboundOrderCreate from '../InboundOrderCreate';
 import { BrowserRouter } from 'react-router-dom';
@@ -28,8 +28,10 @@ vi.mock('../../../services/warehouseService', () => ({
 }));
 
 const mockCreatePurchaseOrder = vi.fn();
+const mockGenerateInboundPurchaseOrder = vi.fn();
 vi.mock('../../../services/purchaseOrderService', () => ({
-  createPurchaseOrder: (data: any) => mockCreatePurchaseOrder(data),
+  createPurchaseOrder: (data: unknown) => mockCreatePurchaseOrder(data),
+  generateInboundPurchaseOrder: (data: unknown) => mockGenerateInboundPurchaseOrder(data),
 }));
 
 vi.mock('../../../utils/tracker', () => ({
@@ -38,13 +40,25 @@ vi.mock('../../../utils/tracker', () => ({
 
 // Mock child components to avoid complex interactions
 vi.mock('../components/SupplierSelect', () => ({
-  default: ({ onChange }: any) => (
-    <input data-testid="supplier-select" onChange={(e) => onChange(e.target.value)} />
+  default: ({ onChange, value }: { onChange: (val: string) => void, value?: any }) => (
+    <input data-testid="supplier-select" value={value || ''} onChange={(e) => onChange(e.target.value)} />
   ),
 }));
 
+interface ProductItem {
+  key: string;
+  productId: number;
+  skuCode: string;
+  productName: string;
+  specName: string;
+  unit: string;
+  minPurchaseQty: number;
+  costPrice: number;
+  [key: string]: string | number;
+}
+
 vi.mock('../components/ProductPoolModal', () => ({
-  default: ({ open, onOk, onCancel }: any) => {
+  default: ({ open, onOk, onCancel }: { open: boolean; onOk: (items: ProductItem[]) => void; onCancel: () => void }) => {
     if (!open) return null;
     return (
       <div data-testid="product-modal">
@@ -59,7 +73,9 @@ vi.mock('../components/ProductPoolModal', () => ({
               specName: 'Spec A',
               unit: 'Box',
               minPurchaseQty: 10,
-              costPrice: 50.00
+              costPrice: 50.00,
+              defaultSupplierId: 88,
+              defaultSupplierName: 'Test Default Supplier'
             }
           ])}
         >
@@ -72,25 +88,28 @@ vi.mock('../components/ProductPoolModal', () => ({
 
 // Mock Antd Select to make testing easier
 vi.mock('antd', async (importOriginal) => {
-  const actual = await importOriginal() as any;
-  const MockSelect = ({ children, onChange, value, ...props }: any) => {
+  const actual = await importOriginal<typeof import('antd')>();
+  const MockSelect = ({ children, onChange, value, ...props }: React.PropsWithChildren<{ onChange?: (val: string | number) => void; value?: string | number; [key: string]: unknown }>) => {
     return (
       <select
         value={value}
-        onChange={(e) => onChange(isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value))}
-        data-testid={props['data-testid'] || 'mock-select'}
+        onChange={(e) => onChange?.(isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value))}
+        data-testid={(props['data-testid'] as string) || 'mock-select'}
       >
         {children}
       </select>
     );
   };
-  MockSelect.Option = ({ children, value }: any) => (
+  MockSelect.Option = ({ children, value }: React.PropsWithChildren<{ value: string | number }>) => (
     <option value={value}>{children}</option>
   );
+
+  const MockDatePicker = (props: any) => <input data-testid="mock-datepicker" onChange={(e) => props.onChange && props.onChange(null, e.target.value)} />;
 
   return {
     ...actual,
     Select: MockSelect,
+    DatePicker: MockDatePicker,
   };
 });
 
@@ -135,6 +154,7 @@ describe('InboundOrderCreate', () => {
     vi.clearAllMocks();
     mockGetWarehouses.mockResolvedValue(mockWarehouses);
     mockCreatePurchaseOrder.mockResolvedValue({ orderNo: 'PO123' });
+    mockGenerateInboundPurchaseOrder.mockResolvedValue({ orderNo: 'INB-2023-001' });
   });
 
   const renderComponent = () => {
@@ -266,8 +286,8 @@ describe('InboundOrderCreate', () => {
     
     // Verify API call
     await waitFor(() => {
-        expect(mockCreatePurchaseOrder).toHaveBeenCalled();
-        const callArg = mockCreatePurchaseOrder.mock.calls[0][0];
+        expect(mockGenerateInboundPurchaseOrder).toHaveBeenCalled();
+        const callArg = mockGenerateInboundPurchaseOrder.mock.calls[0][0];
         expect(callArg.warehouseId).toBe(1);
         expect(callArg.supplier.id).toBe(99); // Note: supplierId might be converted to object or ID depending on logic
         expect(callArg.items).toHaveLength(1);
@@ -276,12 +296,55 @@ describe('InboundOrderCreate', () => {
     
     // Verify navigation
     await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/supply-chain/purchase-order');
+        expect(mockNavigate).toHaveBeenCalledWith('/supply-chain/purchase-order', expect.anything());
+    });
+  });
+
+  it('auto-fills default supplier when adding product if supplier not selected', async () => {
+    renderComponent();
+    await waitFor(() => expect(mockGetWarehouses).toHaveBeenCalled());
+    
+    // 1. Open Modal
+    fireEvent.click(screen.getByText('选择商品'));
+    
+    // 2. Add Product (Mock returns product with defaultSupplierId=88)
+    fireEvent.click(screen.getByText('Confirm Product'));
+    
+    // 3. Verify supplier input is auto-filled
+    await waitFor(() => {
+        expect(screen.getByText('Test Default Supplier')).toBeDefined();
+        // Check if input value is set (now that mock accepts value)
+        const input = screen.getByTestId('supplier-select') as HTMLInputElement;
+        expect(input.value).toBe('88');
+    });
+    
+    // 4. Select Warehouse
+    const select = screen.getByTestId('warehouse-select');
+    fireEvent.change(select, { target: { value: '1' } });
+    
+    // Verify warehouse auto-fill
+    await waitFor(() => {
+         expect(screen.getByDisplayValue('Manager A')).toBeDefined(); // Contact Name
+    });
+
+    // 5. Submit
+    const submitBtn = screen.getByText('提交入库采购单');
+    fireEvent.click(submitBtn);
+    
+    await waitFor(() => {
+         expect(mockGenerateInboundPurchaseOrder).toHaveBeenCalled();
+         const callArg = mockGenerateInboundPurchaseOrder.mock.calls[0][0];
+         expect(callArg.supplier.id).toBe(88);
     });
   });
 
   it('validates missing required fields', async () => {
     renderComponent();
+    
+    // Add item first to enable submit button
+    fireEvent.click(screen.getByText('选择商品'));
+    fireEvent.click(screen.getByText('Confirm Product'));
+    await waitFor(() => screen.getByText('Test Default Supplier'));
     
     const submitBtn = screen.getByText('提交入库采购单');
     fireEvent.click(submitBtn);
@@ -292,6 +355,6 @@ describe('InboundOrderCreate', () => {
         expect(screen.getByText('请选择入库仓库')).toBeDefined();
     });
     
-    expect(mockCreatePurchaseOrder).not.toHaveBeenCalled();
+    expect(mockGenerateInboundPurchaseOrder).not.toHaveBeenCalled();
   });
 });

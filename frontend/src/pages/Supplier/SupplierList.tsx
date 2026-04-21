@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Input, Select, Space, Tag, message, Row, Col, Form, Tooltip, Dropdown, Modal } from 'antd';
+import { Table, Button, Input, Select, Space, Tag, message, Row, Col, Form, Dropdown, Modal } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, EditOutlined, StopOutlined, CheckCircleOutlined, EyeOutlined, ExportOutlined, AccountBookOutlined, DownOutlined, BankOutlined, DeleteOutlined, WarningOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PageDoc from '../../components/PageDoc';
+import SearchFormLayout from '../../components/SearchFormLayout';
 import { useExport } from '../../utils/exportUtils';
 import { getSuppliers, SupplierDTO, deleteAllSuppliers } from '../../services/supplierService';
 import request from '../../utils/request';
@@ -23,6 +24,7 @@ interface SupplierDataType {
   settlementCycle?: string;
   orgCode?: string;
   purchaserId?: number;
+  [key: string]: unknown;
 }
 
 const SupplierList: React.FC = () => {
@@ -39,8 +41,10 @@ const SupplierList: React.FC = () => {
   useEffect(() => {
     const fetchUsers = async () => {
         try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const res: any = await request.get('/users/list');
             if (res && res.content) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 setUserOptions(res.content.map((u: any) => ({ label: u.username, value: u.id })));
             }
         } catch (e) {
@@ -50,7 +54,7 @@ const SupplierList: React.FC = () => {
     fetchUsers();
   }, []);
 
-  const fetchSuppliers = async (page = 1, size = 10) => {
+  const fetchSuppliers = React.useCallback(async (page = 1, size = 10) => {
     setLoading(true);
     try {
       const values = form.getFieldsValue();
@@ -85,25 +89,29 @@ const SupplierList: React.FC = () => {
         purchaserId: item.purchaserId
       }));
       setSuppliers(mappedData);
-      setPagination({ ...pagination, current: page, total: res.totalElements });
+      setPagination(prev => ({ ...prev, current: page, total: res.totalElements }));
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [form, showExpiring]);
 
   useEffect(() => {
     fetchSuppliers(pagination.current, pagination.pageSize);
-  }, [pagination.current, pagination.pageSize, location.key, showExpiring]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchSuppliers, pagination.current, pagination.pageSize, location.key]);
 
-  const handleStatusChange = (key: string, newStatus: 'Enabled' | 'Disabled') => {
-    // TODO: Call backend API to update status
-    const newSuppliers = suppliers.map(item => 
-      item.key === key ? { ...item, status: newStatus } : item
-    );
-    setSuppliers(newSuppliers);
-    message.success(`供应商状态已更新为 ${newStatus === 'Enabled' ? '已启用' : '已禁用'}`);
+  const handleStatusChange = async (key: string, newStatus: 'Enabled' | 'Disabled') => {
+    try {
+      const status = newStatus === 'Enabled' ? 'ACTIVE' : 'INACTIVE';
+      await request.put(`/suppliers/${key}/status?status=${status}`);
+      message.success(`供应商状态已更新为 ${newStatus === 'Enabled' ? '已启用' : '已禁用'}`);
+      fetchSuppliers(pagination.current, pagination.pageSize);
+    } catch (error) {
+      console.error(error);
+      message.error('状态更新失败');
+    }
   };
 
   const handleDeleteAll = () => {
@@ -118,7 +126,7 @@ const SupplierList: React.FC = () => {
                   await deleteAllSuppliers();
                   message.success('所有供应商数据已清空');
                   fetchSuppliers(1, pagination.pageSize);
-              } catch (e) {
+              } catch {
                   message.error('清空数据失败');
               }
           }
@@ -311,67 +319,46 @@ const SupplierList: React.FC = () => {
           { name: 'phone', type: 'String', length: '20', required: true, unique: false, desc: '联系电话' },
         ]}
       />
-      <Form form={form} layout="inline" style={{ marginBottom: 24 }} onFinish={() => fetchSuppliers(1, pagination.pageSize)}>
-         <Row gutter={[16, 16]}>
-           <Col>
-             <Form.Item name="supplierName" label="供应商名称">
-                <Input placeholder="请输入" style={{ width: 150 }} />
-             </Form.Item>
-           </Col>
-           <Col>
-             <Form.Item name="contactInfo" label="联系人信息">
-                <Input placeholder="姓名/电话/邮箱" style={{ width: 150 }} />
-             </Form.Item>
-           </Col>
-           <Col>
-             <Form.Item name="purchaserId" label="采购负责人">
-                <Select placeholder="请选择" style={{ width: 120 }} allowClear options={userOptions} />
-             </Form.Item>
-           </Col>
-           <Col>
-             <Form.Item name="settlementType" label="结算类型">
-                <Select placeholder="请选择" style={{ width: 100 }} allowClear>
-                   <Select.Option value="PREPAYMENT">预付</Select.Option>
-                   <Select.Option value="CASH">现付</Select.Option>
-                   <Select.Option value="PERIOD">账期</Select.Option>
-                </Select>
-             </Form.Item>
-           </Col>
-           <Col>
-             <Form.Item name="settlementPeriod" label="结算周期">
-                <Select placeholder="请选择" style={{ width: 100 }} allowClear>
-                   <Select.Option value={7}>周结</Select.Option>
-                   <Select.Option value={30}>月结</Select.Option>
-                   <Select.Option value={90}>季结</Select.Option>
-                </Select>
-             </Form.Item>
-           </Col>
-           <Col>
-             <Form.Item>
-                <Space>
-                   <Button type="primary" htmlType="submit">查询</Button>
-                   <Button onClick={() => {
-                     form.resetFields();
-                     fetchSuppliers(1, pagination.pageSize);
-                   }}>重置</Button>
-                </Space>
-             </Form.Item>
-           </Col>
-         </Row>
-      </Form>
+      <SearchFormLayout 
+        onFinish={() => fetchSuppliers(1, pagination.pageSize)} 
+        onReset={() => { form.resetFields(); fetchSuppliers(1, pagination.pageSize); }} 
+        form={form}
+        extraButtons={
+           <Button icon={<WarningOutlined />} onClick={() => setShowExpiring(!showExpiring)} type={showExpiring ? 'primary' : 'default'} danger={showExpiring}>
+              {showExpiring ? '显示全部' : '临期预警'}
+           </Button>
+        }
+      >
+         <Form.Item name="supplierName" label="供应商名称" style={{ marginBottom: 0 }}>
+            <Input placeholder="请输入" />
+         </Form.Item>
+         <Form.Item name="contactInfo" label="联系人信息" style={{ marginBottom: 0 }}>
+            <Input placeholder="姓名/电话/邮箱" />
+         </Form.Item>
+         <Form.Item name="purchaserId" label="采购负责人" style={{ marginBottom: 0 }}>
+            <Select placeholder="请选择" allowClear options={userOptions} />
+         </Form.Item>
+         <Form.Item name="settlementType" label="结算类型" style={{ marginBottom: 0 }}>
+            <Select placeholder="请选择" allowClear>
+               <Select.Option value="PREPAYMENT">预付</Select.Option>
+               <Select.Option value="CASH">现付</Select.Option>
+               <Select.Option value="PERIOD">账期</Select.Option>
+            </Select>
+         </Form.Item>
+         <Form.Item name="settlementPeriod" label="结算周期" style={{ marginBottom: 0 }}>
+            <Select placeholder="请选择" allowClear>
+               <Select.Option value={1}>日结</Select.Option>
+               <Select.Option value={7}>周结</Select.Option>
+               <Select.Option value={30}>月结</Select.Option>
+               <Select.Option value={90}>季结</Select.Option>
+            </Select>
+         </Form.Item>
+      </SearchFormLayout>
 
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
          <Space>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/supply-chain/supplier/add')}>
                新增供应商
-            </Button>
-            <Button 
-              danger={!showExpiring} 
-              type={showExpiring ? 'primary' : 'default'}
-              onClick={() => setShowExpiring(!showExpiring)}
-              icon={showExpiring ? <CheckCircleOutlined /> : <WarningOutlined />}
-            >
-              {showExpiring ? '显示全部供应商' : '查看临期供应商'}
             </Button>
          </Space>
          <Space>

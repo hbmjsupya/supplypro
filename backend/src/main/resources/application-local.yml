@@ -1,11 +1,11 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:supplypro;DB_CLOSE_DELAY=-1;MODE=MySQL
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:mysql://127.0.0.1:3307/supplypro?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: password
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
+    database-platform: org.hibernate.dialect.MySQL8Dialect
     hibernate:
       ddl-auto: update
     show-sql: true

@@ -2,6 +2,7 @@ package com.supplypro.entity;
 
 import lombok.Data;
 import javax.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -27,7 +28,7 @@ public class OutboundOrder {
     private String sourceRefNo;
 
     @ManyToOne
-    @JoinColumn(name = "warehouse_id", nullable = false)
+    @JoinColumn(name = "warehouse_id")
     private Warehouse warehouse;
 
     @Enumerated(EnumType.STRING)
@@ -35,6 +36,9 @@ public class OutboundOrder {
 
     @Column(name = "outbound_date")
     private LocalDateTime outboundDate;
+
+    @Column(name = "shipped_at")
+    private LocalDateTime shippedAt;
 
     @Column(name = "confirmed_by")
     private String confirmedBy;
@@ -44,11 +48,38 @@ public class OutboundOrder {
     private LogisticsProvider logisticsProvider;
 
     @Column(name = "logistics_fee")
-    private java.math.BigDecimal logisticsFee;
+    private BigDecimal logisticsFee;
+
+    @Column(name = "logistics_company")
+    private String logisticsCompany;
+
+    @Column(name = "tracking_no")
+    private String trackingNo;
+
+    @Column(name = "delivery_method")
+    private String deliveryMethod;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "settlement_status")
     private SettlementStatus settlementStatus;
+
+    @Column(name = "outbound_items", columnDefinition = "TEXT")
+    private String outboundItems;
+
+    @Column(name = "consignee")
+    private String consignee;
+
+    @Column(name = "consignee_phone")
+    private String consigneePhone;
+
+    @Column(name = "consignee_address")
+    private String consigneeAddress;
+
+    @Column(name = "expected_arrival")
+    private LocalDateTime expectedArrival;
+
+    @Column(name = "remark", columnDefinition = "TEXT")
+    private String remark;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -57,7 +88,7 @@ public class OutboundOrder {
     private LocalDateTime updatedAt;
 
     public enum Status {
-        PENDING, SHIPPED, COMPLETED, CANCELLED
+        PENDING, SHIPPED, RECEIVED, COMPLETED, CANCELLED
     }
 
     public enum SettlementStatus {
@@ -65,6 +96,6 @@ public class OutboundOrder {
     }
 
     public enum SourceType {
-        SALES, DROPSHIP
+        SALES, DROPSHIP, PURCHASE
     }
 }

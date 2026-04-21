@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, Select, Table, InputNumber, Upload, message, Row, Col, Space, Tooltip, Divider, Typography, Modal } from 'antd';
-import { UploadOutlined, DeleteOutlined, PlusOutlined, InfoCircleOutlined, PaperClipOutlined, InboxOutlined, EyeOutlined, DownloadOutlined } from '@ant-design/icons';
+import { Card, Form, Input, Button, Select, Table, InputNumber, Upload, message, Row, Col, Space, Tooltip, Divider, Typography, DatePicker } from 'antd';
+import { UploadOutlined, DeleteOutlined, PlusOutlined, DownloadOutlined, EyeOutlined, PaperClipOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import type { UploadFile } from 'antd/es/upload/interface';
+import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
+import dayjs from 'dayjs';
 import SupplierSelect from './components/SupplierSelect';
 import ProductPoolModal, { FlattenedSku } from './components/ProductPoolModal';
 import { getWarehouses, Warehouse } from '../../services/warehouseService';
-import { createPurchaseOrder, PurchaseOrder, PurchaseOrderItem } from '../../services/purchaseOrderService';
+import { generateInboundPurchaseOrder, PurchaseOrder, PurchaseOrderItem } from '../../services/purchaseOrderService';
 import { getRegionPath } from '../../utils/regionMap';
 import { trackEvent } from '../../utils/tracker';
+import { useFileUpload } from '../../utils/hooks/useFileUpload';
 
 const { Option } = Select;
 const { TextArea } = Input;
-const { Title } = Typography;
+const { Text } = Typography;
 
 const InboundOrderCreate: React.FC = () => {
   const [form] = Form.useForm();
@@ -24,6 +26,12 @@ const InboundOrderCreate: React.FC = () => {
   const [items, setItems] = useState<PurchaseOrderItem[]>([]);
   const [manualAddress, setManualAddress] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | undefined>();
+
+  const { beforeUpload, formatFileSize, isImageFile } = useFileUpload({
+    allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'doc', 'docx', 'xls', 'xlsx'],
+    maxSize: 100 * 1024 * 1024,
+    maxTotalSize: 100 * 1024 * 1024,
+  });
 
   useEffect(() => {
     loadWarehouses();
@@ -40,12 +48,10 @@ const InboundOrderCreate: React.FC = () => {
   };
 
   const handleWarehouseChange = (warehouseId: string | number) => {
-    console.log('handleWarehouseChange called with:', warehouseId);
     // Note: warehouseService returns string ID in interface but Select might emit number?
     // Let's assume ID is number based on PurchaseOrder interface, but Warehouse has string ID?
     // Let's cast to verify.
     const wh = warehouses.find(w => String(w.id) === String(warehouseId));
-    console.log('Found warehouse:', wh);
     if (!wh) return;
 
     // Auto-fill address
@@ -102,16 +108,35 @@ const InboundOrderCreate: React.FC = () => {
   };
 
   const handleProductSelect = (selectedSkus: FlattenedSku[]) => {
-    const newItems = selectedSkus.map(sku => ({
-      key: sku.key,
-      productId: sku.productId,
-      productName: sku.productName,
-      skuCode: sku.skuCode,
-      spec: sku.specName,
-      quantity: 1,
-      unitPrice: sku.costPrice || 0,
-      totalPrice: sku.costPrice || 0
-    }));
+    const newItems = selectedSkus.map(sku => {
+        // Strict check for null/undefined
+        if (sku.productId === null || sku.productId === undefined) {
+            message.error(`商品 ${sku.productName} 数据严重异常(ID缺失)，请联系管理员`);
+            return null;
+        }
+        return {
+            key: sku.key,
+            productId: sku.productId,
+            productName: sku.productName,
+            skuCode: sku.skuCode,
+            spec: sku.specName,
+            quantity: 1,
+            unitPrice: sku.costPrice || 0,
+            totalPrice: sku.costPrice || 0,
+            defaultSupplierId: sku.defaultSupplierId,
+            defaultSupplierName: sku.defaultSupplierName
+        };
+    }).filter(item => item !== null) as PurchaseOrderItem[];
+    
+    // Auto-fill supplier if not selected and new items have a default supplier
+    if (newItems.length > 0 && !form.getFieldValue('supplierId')) {
+        const firstWithSupplier = newItems.find(item => item.defaultSupplierId);
+        if (firstWithSupplier && firstWithSupplier.defaultSupplierId) {
+            form.setFieldsValue({ supplierId: firstWithSupplier.defaultSupplierId });
+            handleSupplierChange(firstWithSupplier.defaultSupplierId);
+            message.info(`已自动关联默认供应商: ${firstWithSupplier.defaultSupplierName}`);
+        }
+    }
     
     // Append to existing items
     setItems(prev => [...prev, ...newItems]);
@@ -136,31 +161,45 @@ const InboundOrderCreate: React.FC = () => {
       return items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onFinish = async (values: any) => {
     if (items.length === 0) {
-        message.error('请至少选择一个商品');
+        message.error('请至少选择一件商品');
         return;
     }
     if (items.some(i => i.quantity <= 0)) {
         message.error('商品数量必须大于0');
         return;
     }
+    
+    // Validate Product IDs with specific row info
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (!item.productId) { // Check for null, undefined, 0, ""
+            message.error(`第 ${i + 1} 行商品未选择，请重新选择`);
+            return;
+        }
+    }
 
     // Attachment validation
     const totalSize = fileList.reduce((sum, file) => sum + (file.size || 0), 0);
     if (totalSize > 100 * 1024 * 1024) {
-        message.error('附件总大小不能超过100MB');
+        message.error(`附件总大小不能超过${formatFileSize(100 * 1024 * 1024)}`);
         return;
     }
     
-    const attachmentUrls = fileList.map(f => {
-        if (f.response) return f.response.fileUrl; // Assuming upload response structure
-        return f.url;
-    }).filter(Boolean);
+    const attachmentUrls = fileList
+      .filter(f => f.status === 'done')
+      .map(f => {
+        if (f.response && f.response.fileUrl) return f.response.fileUrl;
+        if (f.url) return f.url;
+        return null;
+      })
+      .filter(Boolean);
 
     const payload: Partial<PurchaseOrder> = {
         supplier: { id: Number(values.supplierId) },
-        warehouseId: Number(values.warehouseId), // Ensure number
+        warehouseId: Number(values.warehouseId),
         type: 'INBOUND',
         status: 'PENDING_SETTLEMENT', 
         items: items,
@@ -173,57 +212,166 @@ const InboundOrderCreate: React.FC = () => {
         detailAddress: values.detailAddress,
         isManualAddress: manualAddress,
         attachments: JSON.stringify(attachmentUrls),
-        remark: values.remark
+        remark: values.remark,
+        deliveryDate: values.expectedArrival ? dayjs(values.expectedArrival).format('YYYY-MM-DD') : undefined
     };
 
     const startTime = Date.now();
     setLoading(true);
     trackEvent({ category: 'PurchaseOrder', action: 'Submit', label: 'Start' });
+
     try {
-        await createPurchaseOrder(payload);
+        await generateInboundPurchaseOrder(payload);
         trackEvent({ category: 'PurchaseOrder', action: 'Submit', label: 'Success', value: Date.now() - startTime });
         message.success('入库采购单已创建');
-        navigate('/supply-chain/purchase-order');
-    } catch (error) {
+        navigate('/supply-chain/purchase-order', { state: { refresh: true } });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
         trackEvent({ category: 'PurchaseOrder', action: 'Submit', label: 'Failed' });
-        console.error(error);
-        // Error handled by request interceptor usually
+        
+        const errorMsg = error.response?.data?.message || error.message || '系统异常，请稍后重试';
+        message.error(`提交失败: ${errorMsg}`);
     } finally {
         setLoading(false);
     }
   };
-  
-  const uploadProps = {
-      action: '/api/files/upload', // Assuming this endpoint exists
-      onChange: (info: any) => {
-          setFileList(info.fileList);
-          if (info.file.status === 'done') {
-              message.success(`${info.file.name} 上传成功`);
-              trackEvent({ category: 'PurchaseOrder', action: 'UploadAttachment', label: 'Success' });
-          } else if (info.file.status === 'error') {
-              message.error(`${info.file.name} 上传失败: ${info.file.error?.message || '网络异常'}`);
-              trackEvent({ category: 'PurchaseOrder', action: 'UploadAttachment', label: 'Failed' });
-          }
-      },
-      beforeUpload: (file: File) => {
-          const isLt100M = file.size / 1024 / 1024 < 100;
-          if (!isLt100M) {
-              message.error('文件大小不能超过100MB');
-          }
-          const ext = file.name.split('.').pop()?.toLowerCase();
-          const allowExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'zip', 'rar'];
-          if (!allowExts.includes(ext || '')) {
-              message.error('不支持的文件格式');
-              return Upload.LIST_IGNORE;
-          }
-          return isLt100M;
-      },
-      fileList,
+
+  const handlePreview = async (file: UploadFile) => {
+    const fileUrl = file.url || file.response?.fileUrl;
+    if (!fileUrl) {
+      message.error('文件URL不存在');
+      return;
+    }
+    
+    if (isImageFile(file.name)) {
+      window.open(fileUrl, '_blank');
+    } else {
+      window.open(fileUrl, '_blank');
+    }
+  };
+
+  const handleDownload = (file: UploadFile) => {
+    const fileUrl = file.url || file.response?.fileUrl;
+    if (!fileUrl) {
+      message.error('文件URL不存在');
+      return;
+    }
+    
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = file.name || 'download';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const uploadProps: UploadProps = {
+    action: '/api/files/upload',
+    multiple: true,
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('token')}`,
+    },
+    fileList,
+    onChange: (info) => {
+      setFileList(info.fileList);
+      
+      if (info.file.status === 'done') {
+        const response = info.file.response;
+        if (response && response.fileUrl) {
+          message.success(`${info.file.name} 上传成功`);
+          trackEvent({ category: 'PurchaseOrder', action: 'UploadAttachment', label: 'Success' });
+        } else {
+          message.error(`${info.file.name} 上传失败: 响应格式错误`);
+        }
+      } else if (info.file.status === 'error') {
+        message.error(`${info.file.name} 上传失败`);
+        trackEvent({ category: 'PurchaseOrder', action: 'UploadAttachment', label: 'Failed' });
+      }
+    },
+    beforeUpload: (file) => {
+      const isValid = beforeUpload(file, fileList);
+      if (!isValid) {
+        return Upload.LIST_IGNORE;
+      }
+      return true;
+    },
+    onRemove: (file) => {
+      trackEvent({ category: 'PurchaseOrder', action: 'RemoveAttachment', label: file.name });
+    },
+    itemRender: (originNode, file) => {
+      const fileUrl = file.url || file.response?.fileUrl;
+      
+      return (
+        <div className="attachment-item" style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          padding: '8px 12px',
+          border: '1px solid #d9d9d9',
+          borderRadius: 6,
+          marginBottom: 8,
+          background: file.status === 'done' ? '#fafafa' : '#fff'
+        }}>
+          <PaperClipOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+          
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ 
+              overflow: 'hidden', 
+              textOverflow: 'ellipsis', 
+              whiteSpace: 'nowrap',
+              fontWeight: 500
+            }}>
+              {file.name}
+            </div>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {file.size ? formatFileSize(file.size) : ''}
+              {file.status === 'uploading' && ' - 上传中...'}
+              {file.status === 'done' && ' - 上传成功'}
+              {file.status === 'error' && ' - 上传失败'}
+            </Text>
+          </div>
+          
+          {file.status === 'done' && fileUrl && (
+            <Space size="small">
+              <Tooltip title="预览">
+                <Button 
+                  type="text" 
+                  size="small" 
+                  icon={<EyeOutlined />}
+                  onClick={() => handlePreview(file)}
+                />
+              </Tooltip>
+              <Tooltip title="下载">
+                <Button 
+                  type="text" 
+                  size="small" 
+                  icon={<DownloadOutlined />}
+                  onClick={() => handleDownload(file)}
+                />
+              </Tooltip>
+            </Space>
+          )}
+          
+          {file.status === 'error' && (
+            <Button 
+              type="text" 
+              size="small" 
+              danger
+              onClick={() => {
+                setFileList(prev => prev.filter(f => f.uid !== file.uid));
+              }}
+            >
+              移除
+            </Button>
+          )}
+        </div>
+      );
+    },
   };
 
   const columns = [
       { title: '商品编码', dataIndex: 'skuCode' },
       { title: '商品名称', dataIndex: 'productName' },
+      { title: '默认供应商', dataIndex: 'defaultSupplierName', render: (text: string) => text || '-' },
       { title: '规格', dataIndex: 'spec' },
       { 
           title: '单价', 
@@ -233,6 +381,7 @@ const InboundOrderCreate: React.FC = () => {
       { 
           title: '数量', 
           dataIndex: 'quantity',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           render: (text: number, record: any, index: number) => (
               <InputNumber min={1} value={text} onChange={(val) => handleQuantityChange(index, val)} />
           )
@@ -245,6 +394,7 @@ const InboundOrderCreate: React.FC = () => {
       {
           title: '操作',
           key: 'action',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           render: (_: any, __: any, index: number) => (
               <Button type="text" danger icon={<DeleteOutlined />} onClick={() => handleDeleteItem(index)}>删除</Button>
           )
@@ -253,7 +403,7 @@ const InboundOrderCreate: React.FC = () => {
 
   return (
     <div className="page-container">
-      <Card title="新建入库采购单" bordered={false}>
+      <Card title="新建入库采购单" variant="borderless">
         <Form
             form={form}
             layout="vertical"
@@ -363,24 +513,46 @@ const InboundOrderCreate: React.FC = () => {
 
             <Divider>其他信息</Divider>
 
-            <Form.Item label="附件" name="attachments">
+            <Form.Item 
+                label="附件" 
+                name="attachments"
+                extra="支持格式: pdf, doc, docx, xls, xlsx, jpg, png, zip, rar"
+            >
                 <Upload {...uploadProps}>
                     <Button icon={<UploadOutlined />}>上传附件 (支持拖拽, Max 100MB)</Button>
                 </Upload>
-                <div style={{ marginTop: 8, color: '#999' }}>
-                    支持格式: pdf, doc, docx, xls, xlsx, jpg, png, zip, rar
-                </div>
             </Form.Item>
 
             <Form.Item label="备注" name="remark">
                 <TextArea rows={4} />
             </Form.Item>
 
+            <Form.Item 
+                label="预计到货日期" 
+                name="expectedArrival"
+                extra="选填，可指定期望的货物到达时间"
+            >
+                <DatePicker 
+                    style={{ width: '100%' }} 
+                    placeholder="请选择预计到货日期"
+                    disabledDate={(current) => current && current < dayjs().startOf('day')}
+                />
+            </Form.Item>
+
             <Form.Item>
                 <Space>
-                    <Button type="primary" htmlType="submit" loading={loading} size="large">
-                        提交入库采购单
-                    </Button>
+                    <Tooltip title={items.length === 0 ? "请至少选择一件商品" : ""}>
+                        <Button 
+                            type="primary" 
+                            htmlType="submit" 
+                            loading={loading} 
+                            size="large"
+                            disabled={items.length === 0}
+                        >
+                            提交入库采购单
+                        </Button>
+                    </Tooltip>
+                    {items.length === 0 && <span style={{ color: '#ff4d4f', fontSize: '14px' }}>* 请至少选择一件商品</span>}
                     <Button onClick={() => navigate('/supply-chain/purchase-order')} size="large">
                         取消
                     </Button>

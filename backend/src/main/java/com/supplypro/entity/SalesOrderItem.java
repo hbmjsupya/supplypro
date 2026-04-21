@@ -20,6 +20,7 @@ public class SalesOrderItem {
     private SalesOrder salesOrder;
 
     @Column(name = "product_id")
+    @javax.validation.constraints.NotNull(message = "Product ID cannot be null")
     private Long productId;
 
     @ManyToOne

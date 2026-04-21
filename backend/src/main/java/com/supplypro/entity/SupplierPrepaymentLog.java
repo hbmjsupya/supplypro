@@ -17,6 +17,13 @@ public class SupplierPrepaymentLog {
     @JoinColumn(name = "supplier_id", nullable = false)
     private Supplier supplier;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "logistics_provider_id")
+    private LogisticsProvider logisticsProvider;
+
+    @Column(name = "owner_type", length = 20)
+    private String ownerType;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 20, nullable = false)
     private Type type;
@@ -35,8 +42,13 @@ public class SupplierPrepaymentLog {
     @Column(name = "created_by")
     private String createdBy;
 
-    @Column(name = "created_at", insertable = false, updatable = false)
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
 
     public enum Type {
         CHARGE, DEDUCT, REFUND

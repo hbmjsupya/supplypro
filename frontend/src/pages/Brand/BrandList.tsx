@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Table, Button, Input, Space, Tag, Avatar, message, Modal, Tooltip } from 'antd';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Table, Button, Input, Space, Tag, Avatar, message, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, EditOutlined, StopOutlined, CheckCircleOutlined, UserOutlined, ExportOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -13,53 +13,40 @@ const BrandList: React.FC = () => {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [total, setTotal] = useState(0);
   const [searchText, setSearchText] = useState('');
+  const [query, setQuery] = useState('');
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
 
-  const fetchBrands = async () => {
+  const fetchBrands = useCallback(async () => {
     setLoading(true);
     try {
       const res = await getBrands({
         page: pagination.current - 1,
         size: pagination.pageSize,
-        name: searchText
+        name: query
       });
       setBrands(res.records || []);
       setTotal(res.total || 0);
-    } catch (error) {
+    } catch {
       message.error('加载品牌列表失败');
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination, query]);
 
   useEffect(() => {
     fetchBrands();
-  }, [pagination.current, pagination.pageSize]);
+  }, [fetchBrands]);
 
   const handleSearch = () => {
+    setQuery(searchText);
     setPagination({ ...pagination, current: 1 });
-    fetchBrands();
   };
 
   const handleReset = () => {
     setSearchText('');
+    setQuery('');
     setPagination({ ...pagination, current: 1 });
-    // fetchBrands will be triggered by useEffect if I add searchText dependency or call it here
-    // But since state update is async, better to trigger via effect or direct call with empty string
-    // Let's just reset state and rely on effect if I add searchText to dependency? 
-    // Or call fetchBrands manually with cleared params.
-    // Simpler:
-    // setSearchText('');
-    // setPagination({ ...pagination, current: 1 });
-    // setTimeout(fetchBrands, 0); 
-    // Actually, let's add searchText to useEffect dependency? No, that triggers on every type.
-    // Just call fetchBrands explicitly? But state isn't updated yet.
-    // Solution:
-    // setSearchText('');
-    // fetchBrandsInternal(1, 10, '');
   };
-  
-  // Re-implementing handleReset correctly by decoupling fetch
   
   const { handleExport, exporting, progress } = useExport<Brand>({
     filenamePrefix: '品牌列表',
@@ -79,6 +66,7 @@ const BrandList: React.FC = () => {
       message.success(`品牌状态已更新为 ${newStatus === 'ENABLED' ? '已启用' : '已禁用'}`);
       fetchBrands();
     } catch (error) {
+      console.error(error);
       message.error('更新状态失败');
     }
   };
@@ -166,7 +154,7 @@ const BrandList: React.FC = () => {
              onPressEnter={handleSearch}
            />
            <Button type="primary" onClick={handleSearch}>查询</Button>
-           <Button onClick={() => { setSearchText(''); setPagination({ ...pagination, current: 1 }); /* trigger fetch via effect if needed, but here effect depends on pagination only. We need to trigger fetch manually or change dependency */ setTimeout(() => fetchBrands(), 0); }}>重置</Button>
+           <Button onClick={handleReset}>重置</Button>
         </Space>
         <Space>
            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/supply-chain/brand/add')}>

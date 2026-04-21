@@ -67,6 +67,10 @@ public class LogisticsProviderServiceImpl implements LogisticsProviderService {
                 predicates.add(cb.or(nameLike, phoneLike));
             }
 
+            if (StringUtils.hasText(criteria.getStatus())) {
+                predicates.add(cb.equal(root.get("status"), criteria.getStatus()));
+            }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 

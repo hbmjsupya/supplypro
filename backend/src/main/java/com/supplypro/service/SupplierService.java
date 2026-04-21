@@ -9,6 +9,7 @@ public interface SupplierService {
     SupplierDTO getById(Long id);
     SupplierDTO create(SupplierDTO dto);
     SupplierDTO update(Long id, SupplierDTO dto);
+    SupplierDTO toggleStatus(Long id, String status);
     void delete(Long id);
     void deleteAll();
 }

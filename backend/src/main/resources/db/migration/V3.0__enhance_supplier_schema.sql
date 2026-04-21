@@ -3,7 +3,21 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 -- Clear data as requested
 TRUNCATE TABLE brand_supplier;
+
+-- Ensure supplier_accounts exists before truncation (missing in V1.x/V2.x)
+CREATE TABLE IF NOT EXISTS supplier_accounts (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    supplier_id BIGINT NOT NULL,
+    name VARCHAR(255),
+    bank VARCHAR(255),
+    account VARCHAR(50),
+    type VARCHAR(255),
+    is_default BOOLEAN DEFAULT FALSE,
+    status BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+);
 TRUNCATE TABLE supplier_accounts;
+
 TRUNCATE TABLE supplier_prepayment_logs;
 TRUNCATE TABLE settlement_orders;
 TRUNCATE TABLE purchase_orders;

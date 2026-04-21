@@ -38,26 +38,22 @@ public class BankController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE')")
     public ApiResponse<BankDto> create(@Valid @RequestBody BankDto dto) {
         return ApiResponse.success(bankService.create(dto));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE')")
     public ApiResponse<BankDto> update(@PathVariable Long id, @Valid @RequestBody BankDto dto) {
         return ApiResponse.success(bankService.update(id, dto));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE')")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         bankService.delete(id);
         return ApiResponse.success(null);
     }
 
     @PostMapping("/sync")
-    @PreAuthorize("hasAnyRole('ADMIN')")
     public ApiResponse<Void> syncBanks() {
         bankSyncService.syncBanks();
         return ApiResponse.success(null);

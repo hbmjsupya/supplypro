@@ -39,12 +39,22 @@ import WarehouseProductList from './pages/Warehouse/WarehouseProductList';
 import InboundOrderList from './pages/Warehouse/InboundOrderList';
 import InboundOrderDetail from './pages/Warehouse/InboundOrderDetail';
 import OutboundOrderList from './pages/Warehouse/OutboundOrderList';
+import OutboundOrderDetail from './pages/Warehouse/OutboundOrderDetail';
+import OutboundOrderLogistics from './pages/Warehouse/OutboundOrderLogistics';
 import StockFlowList from './pages/Warehouse/StockFlowList';
 import InventoryReport from './pages/Warehouse/InventoryReport';
 
 // Logistics
 import LogisticsProviderList from './pages/Logistics/LogisticsProviderList';
 import LogisticsProviderDetail from './pages/Logistics/LogisticsProviderDetail';
+import LogisticsTrackingDetail from './pages/Logistics/LogisticsTrackingDetail';
+
+// Refund
+import RefundOrderList from './pages/Refund/RefundOrderList';
+import RefundOrderDetail from './pages/Refund/RefundOrderDetail';
+
+// Delivery
+import DeliveryOrderDetail from './pages/Delivery/DeliveryOrderDetail';
 
 // Settlement
 import PendingSettlementList from './pages/Settlement/PendingSettlementList';
@@ -55,9 +65,12 @@ import SupplierPrepaymentSettlementDetail from './pages/Settlement/SupplierPrepa
 
 import Login from './pages/Login/Login';
 
+import ErrorBoundary from './components/ErrorBoundary';
+
 const App: React.FC = () => {
   return (
-    <ConfigProvider locale={zhCN}>
+    <ErrorBoundary>
+      <ConfigProvider locale={zhCN}>
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -80,6 +93,12 @@ const App: React.FC = () => {
            <Route path="/supply-chain/logistics-provider" element={<LogisticsProviderList />} />
            <Route path="/supply-chain/logistics-provider/create" element={<LogisticsProviderDetail />} />
            <Route path="/supply-chain/logistics-provider/detail/:id" element={<LogisticsProviderDetail />} />
+           <Route path="/supply-chain/logistics-provider/prepayment-list/:id" element={<SupplierPrepaymentList />} />
+           <Route path="/supply-chain/logistics-provider/prepayment-detail/:id" element={<SupplierPrepaymentDetail />} />
+           <Route path="/supply-chain/logistics-provider/prepayment-log/:id" element={<SupplierPrepaymentLog />} />
+           <Route path="/supply-chain/logistics/detail/:trackingNumber" element={<LogisticsTrackingDetail />} />
+           <Route path="/supply-chain/refund-order" element={<RefundOrderList />} />
+           <Route path="/supply-chain/refund-order/detail/:id" element={<RefundOrderDetail />} />
            
            <Route path="/supply-chain/product-pool" element={<ProductPoolList />} />
            <Route path="/supply-chain/product-pool/add" element={<ProductAdd />} />
@@ -93,6 +112,7 @@ const App: React.FC = () => {
            
            <Route path="/supply-chain/purchase-order" element={<PurchaseOrderList />} />
            <Route path="/supply-chain/purchase-order/create" element={<PurchaseOrderCreate />} />
+           {/* Inbound Creation Route */}
            <Route path="/supply-chain/purchase-order/create-inbound" element={<InboundOrderCreate />} />
            <Route path="/supply-chain/purchase-order/detail/:id" element={<PurchaseOrderDetail />} />
            <Route path="/supply-chain/purchase-order/logistics/:id" element={<PurchaseOrderLogistics />} />
@@ -103,23 +123,27 @@ const App: React.FC = () => {
            {/* Settlement */}
            <Route path="/supply-chain/settlement/pending" element={<PendingSettlementList />} /> 
            <Route path="/supply-chain/settlement/delivery" element={<PendingDeliverySettlementList />} />
+           <Route path="/supply-chain/delivery/detail/:deliveryNo" element={<DeliveryOrderDetail />} />
            <Route path="/supply-chain/settlement/supplier" element={<SupplierSettlementList />} />
-           <Route path="/supply-chain/supplier-settlement/detail/:id" element={<SupplierSettlementDetail />} />
-           <Route path="/supply-chain/supplier-settlement/prepayment-detail/:id" element={<SupplierPrepaymentSettlementDetail />} />
+           <Route path="/supply-chain/settlement/supplier/detail/:id" element={<SupplierSettlementDetail />} />
+           <Route path="/supply-chain/settlement/supplier/prepayment-detail/:id" element={<Navigate to="/supply-chain/settlement/supplier/detail/:id" replace />} />
 
           {/* Warehouse Management */}
-           <Route path="/supply-chain/warehouse" element={<WarehouseList />} />
-           <Route path="/supply-chain/warehouse-product" element={<WarehouseProductList />} />
-           <Route path="/supply-chain/inbound" element={<InboundOrderList />} />
-           <Route path="/supply-chain/inbound/detail/:id" element={<InboundOrderDetail />} />
-           <Route path="/supply-chain/outbound" element={<OutboundOrderList />} />
-           <Route path="/supply-chain/stock-flow" element={<StockFlowList />} />
-           <Route path="/supply-chain/inventory-report" element={<InventoryReport />} />
+          <Route path="/supply-chain/warehouse" element={<WarehouseList />} />
+          <Route path="/supply-chain/warehouse-product" element={<WarehouseProductList />} />
+          <Route path="/supply-chain/inbound" element={<InboundOrderList />} />
+          <Route path="/supply-chain/inbound/detail/:id" element={<InboundOrderDetail />} />
+          <Route path="/supply-chain/outbound" element={<OutboundOrderList />} />
+          <Route path="/supply-chain/outbound/detail/:id" element={<OutboundOrderDetail />} />
+          <Route path="/supply-chain/outbound/logistics/:id" element={<OutboundOrderLogistics />} />
+          <Route path="/supply-chain/stock-flow" element={<StockFlowList />} />
+          <Route path="/supply-chain/inventory-report" element={<InventoryReport />} />
            
         </Route>
       </Routes>
-    </Router>
-    </ConfigProvider>
+      </Router>
+      </ConfigProvider>
+    </ErrorBoundary>
   );
 };
 

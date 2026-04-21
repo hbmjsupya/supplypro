@@ -4,6 +4,9 @@ import { message } from 'antd';
 const request = axios.create({
   baseURL: '/api', // Vite proxy will handle this
   timeout: 10000,
+  paramsSerializer: {
+    indexes: null // Use repeat syntax for arrays: poNos=1&poNos=2 instead of poNos[]=1&poNos[]=2
+  }
 });
 
 // Retry configuration
@@ -35,6 +38,16 @@ request.interceptors.response.use(
         if (res.code !== 200) {
             message.error(res.message || 'Error');
             return Promise.reject(new Error(res.message || 'Error'));
+        }
+        // Check if response has pagination fields at root level
+        if (res.totalElements !== undefined || res.totalPages !== undefined) {
+            // Return object with data and pagination info
+            return {
+                data: res.data,
+                totalElements: res.totalElements,
+                totalPages: res.totalPages,
+                currentPage: res.currentPage
+            };
         }
         return res.data;
     }

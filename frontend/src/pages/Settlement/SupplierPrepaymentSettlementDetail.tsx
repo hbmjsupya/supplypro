@@ -18,12 +18,13 @@ interface OperationRecord {
 
 const SupplierPrepaymentSettlementDetail: React.FC = () => {
   const navigate = useNavigate();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { id } = useParams();
   const [expandHistory, setExpandHistory] = useState(true);
 
   // Mock Detail Data for Prepayment
-  const [settlementInfo, setSettlementInfo] = useState({
-     settlementNo: 'JS20231027002',
+  const [settlementInfo] = useState({
+     settlementNo: 'PS20231027002',
      payer: '平台运营主体',
      payee: '三星电子',
      payeeAccountName: '三星电子',
@@ -37,7 +38,7 @@ const SupplierPrepaymentSettlementDetail: React.FC = () => {
      createTime: '2023-10-26 10:00:00'
   });
 
-  const [operationRecords, setOperationRecords] = useState<OperationRecord[]>([
+  const [operationRecords] = useState<OperationRecord[]>([
     { id: '1', operator: 'Jane Smith', department: '采购部', time: '2023-10-26 09:30:00', action: 'Create', remark: '自动生成预付扣款单' },
     { id: '2', operator: 'System', department: '系统', time: '2023-10-26 10:00:00', action: 'Pay', remark: '预付款自动抵扣' },
   ]);
@@ -104,7 +105,7 @@ const SupplierPrepaymentSettlementDetail: React.FC = () => {
       />
       <Breadcrumb style={{ marginBottom: 16 }} items={[
          { title: '供应链管理' },
-         { title: <a onClick={() => navigate('/supply-chain/supplier-settlement')}>供应商结算单列表</a> },
+         { title: <a onClick={() => navigate('/supply-chain/settlement/supplier')}>供应商结算单列表</a> },
          { title: '预付结算单详情' }
       ]} />
 
@@ -132,7 +133,7 @@ const SupplierPrepaymentSettlementDetail: React.FC = () => {
                <Descriptions.Item label="收款开户名">{settlementInfo.payeeAccountName}</Descriptions.Item>
                <Descriptions.Item label="开户总行">{settlementInfo.payeeBank}</Descriptions.Item>
                <Descriptions.Item label="收款账号">{settlementInfo.payeeAccount}</Descriptions.Item>
-               <Descriptions.Item label="申请结算金额"><Text strong style={{ fontSize: 16 }}>¥{settlementInfo.applyAmount.toLocaleString()}</Text></Descriptions.Item>
+               <Descriptions.Item label="申请结算金额"><Text strong>¥{settlementInfo.applyAmount.toLocaleString()}</Text></Descriptions.Item>
                <Descriptions.Item label="已付金额">
                    {getDisplayPaidAmount(settlementInfo.applyAmount, settlementInfo.paidAmount)}
                </Descriptions.Item>

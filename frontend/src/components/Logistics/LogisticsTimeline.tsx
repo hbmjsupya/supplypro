@@ -1,6 +1,6 @@
 import React from 'react';
-import { Timeline, Card, Descriptions, Tag } from 'antd';
-import { TruckOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { Timeline, Card, Tag } from 'antd';
+import { TruckOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { LogisticsTrack } from '../../types/logistics';
 
 interface LogisticsTimelineProps {

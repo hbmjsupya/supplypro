@@ -9,6 +9,7 @@ import request from '../../../utils/request';
 
 // Mock services
 vi.mock('../../../services/warehouseService', async (importOriginal) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const actual: any = await importOriginal();
   return {
     ...actual,
@@ -23,13 +24,16 @@ vi.mock('../../../services/warehouseService', async (importOriginal) => {
 
 // Mock Ant Design Dropdown to avoid Portal/Hover issues
 vi.mock('antd', async (importOriginal) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const actual: any = await importOriginal();
     return {
         ...actual,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         Dropdown: ({ menu, children }: any) => (
             <div data-testid="mock-dropdown">
                 {children}
                 <div className="mock-dropdown-menu">
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                     {menu?.items?.map((item: any) => (
                         item.type === 'divider' ? null :
                         <div 
@@ -105,10 +109,15 @@ describe('WarehouseList', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (warehouseService.getWarehouses as any).mockResolvedValue(mockWarehouses);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (warehouseService.getInventoryBatches as any).mockResolvedValue(mockBatches);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (warehouseService.getNextWarehouseCode as any).mockResolvedValue('WH00002');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (warehouseService.saveWarehouse as any).mockResolvedValue({});
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (warehouseService.deleteWarehouse as any).mockResolvedValue({});
     
     // Mock fetch for regions
@@ -131,9 +140,11 @@ describe('WarehouseList', () => {
                 ]
             }
         ])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }) as any;
 
     // Mock request.get for users and details
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (request.get as any).mockImplementation((url: string) => {
         if (url.includes('/users/list')) {
             return Promise.resolve({
@@ -190,6 +201,7 @@ describe('WarehouseList', () => {
   });
 
   it('handles status toggle', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (warehouseService.updateWarehouseStatus as any).mockResolvedValue();
 
     render(
@@ -213,7 +225,7 @@ describe('WarehouseList', () => {
   });
 
   it('opens add modal and submits form', async () => {
-    const { container } = render(
+    render(
         <BrowserRouter>
           <WarehouseList />
         </BrowserRouter>
@@ -317,6 +329,7 @@ describe('WarehouseList', () => {
 
   it('handles error when loading warehouse details fails', async () => {
     // Mock failure
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (request.get as any).mockImplementation((url: string) => {
         if (url.includes('/warehouses/1')) {
             return Promise.reject(new Error('Network Error'));
@@ -346,6 +359,7 @@ describe('WarehouseList', () => {
 
   it('handles missing optional fields in warehouse details', async () => {
     // Mock response with missing fields
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (request.get as any).mockImplementation((url: string) => {
         if (url.includes('/warehouses/1')) {
             return Promise.resolve({

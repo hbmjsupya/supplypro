@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 @Data
 @Entity
 @Table(name = "suppliers")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Supplier {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -99,7 +100,7 @@ public class Supplier {
     private LocalDateTime updatedAt;
 
     public enum SettlementType {
-        PREPAYMENT, CASH, PERIOD
+        PREPAYMENT, CASH, PERIOD, FISHERMAN
     }
 
     public enum Status {

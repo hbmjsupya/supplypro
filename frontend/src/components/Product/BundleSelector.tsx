@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Table, Input, Button, InputNumber, message } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { productService, Product } from '../../services/productService';
 
+interface BundleItem {
+  childProductId: number;
+  childProductName: string;
+  quantity: number;
+}
+
 interface BundleSelectorProps {
-  value?: any[];
-  onChange?: (value: any[]) => void;
+  value?: BundleItem[];
+  onChange?: (value: BundleItem[]) => void;
 }
 
 const BundleSelector: React.FC<BundleSelectorProps> = ({ value = [], onChange }) => {
@@ -14,39 +20,43 @@ const BundleSelector: React.FC<BundleSelectorProps> = ({ value = [], onChange })
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await productService.getAll({ page: 0, size: 50, name: searchText });
-      if (res && res.data && res.data.records) {
-        setProducts(res.data.records);
-      }
+      const res = await productService.getAll({
+        page: 0,
+        size: 20,
+        keyword: searchText
+      });
+      // Ensure we access records correctly based on response structure
+      // request.get returns AxiosResponse or data directly depending on interceptor
+      // Assuming res is the response object or data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = (res as any).records || (res as any).data?.records || [];
+      setProducts(data);
     } catch (error) {
       console.error(error);
+      message.error('加载商品失败');
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchText]);
 
   useEffect(() => {
     if (isModalVisible) {
       fetchProducts();
     }
-  }, [isModalVisible, searchText]);
+  }, [isModalVisible, fetchProducts]);
 
   const handleAdd = (product: Product) => {
-    // Check if already added
-    if (value.some(item => item.childProductId === product.id)) {
-      message.warning('该商品已添加');
-      return;
-    }
-    const newItem = {
+    if (!product.id) return;
+    const newItem: BundleItem = {
       childProductId: product.id,
       childProductName: product.name,
       quantity: 1
     };
     onChange?.([...value, newItem]);
-    message.success('添加成功');
+    setIsModalVisible(false);
   };
 
   const handleRemove = (childProductId: number) => {

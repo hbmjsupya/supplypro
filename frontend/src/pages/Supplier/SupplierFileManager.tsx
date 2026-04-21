@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Upload, Button, List, Image, message, Modal, Space, Popconfirm, Form, Input, Table, Tag, Row, Col } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Upload, Button, message, Modal, Space, Popconfirm, Form, Input, Table, Tag, Row, Col } from 'antd';
 import { UploadOutlined, DeleteOutlined, FileOutlined, EyeOutlined, DownloadOutlined, EditOutlined, HistoryOutlined, CloudUploadOutlined } from '@ant-design/icons';
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
 import request from '../../utils/request';
 
-interface SupplierFileDTO {
-    id: number | string; // Allow string for temp IDs if needed, though backend returns null/0 for temp? No, temp upload returns DTO with no ID usually? 
-    // Backend temp upload returns DTO. 
-    // Let's assume ID might be null or we use storedFileName as key for temp files.
+export interface SupplierFileDTO {
+    id: number | string;
     originalFileName: string;
     storedFileName: string;
     fileType: string;
@@ -30,6 +28,12 @@ interface SupplierFileManagerProps {
     apiPrefix?: string;
 }
 
+const addTokenToUrl = (url: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) return url;
+    return `${url}${url.includes('?') ? '&' : '?'}token=${token}`;
+};
+
 const SupplierFileManager: React.FC<SupplierFileManagerProps> = ({ supplierId, category, isView, onFilesChange, apiPrefix = '/supplier-files' }) => {
     const [fileList, setFileList] = useState<SupplierFileDTO[]>([]);
     const [loading, setLoading] = useState(false);
@@ -49,15 +53,10 @@ const SupplierFileManager: React.FC<SupplierFileManagerProps> = ({ supplierId, c
     const [historyList, setHistoryList] = useState<SupplierFileDTO[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
 
-    const addTokenToUrl = (url: string) => {
-        const token = localStorage.getItem('token');
-        if (!token) return url;
-        return `${url}${url.includes('?') ? '&' : '?'}token=${token}`;
-    };
-
-    const fetchFiles = async () => {
+    const fetchFiles = useCallback(async () => {
         if (!supplierId) return;
         try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const res: any = await request.get(`${apiPrefix}/${supplierId}`, {
                 params: { category }
             });
@@ -67,6 +66,7 @@ const SupplierFileManager: React.FC<SupplierFileManagerProps> = ({ supplierId, c
             }));
             setFileList(filesWithToken);
             onFilesChange?.(filesWithToken);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error('Failed to fetch files:', error);
             if (error.response) {
@@ -84,7 +84,7 @@ const SupplierFileManager: React.FC<SupplierFileManagerProps> = ({ supplierId, c
                 message.error('网络错误或服务不可达');
             }
         }
-    };
+    }, [supplierId, category, apiPrefix, onFilesChange]);
 
     useEffect(() => {
         if (supplierId) {
@@ -93,7 +93,7 @@ const SupplierFileManager: React.FC<SupplierFileManagerProps> = ({ supplierId, c
             setFileList([]); // Reset for new supplier
             onFilesChange?.([]);
         }
-    }, [supplierId, category]);
+    }, [supplierId, category, fetchFiles, onFilesChange]);
 
     const beforeUpload = (file: UploadFile) => {
         const isLt50M = (file.size || 0) / 1024 / 1024 < 50;
@@ -122,6 +122,7 @@ const SupplierFileManager: React.FC<SupplierFileManagerProps> = ({ supplierId, c
                 onSuccess?.("ok");
             } else {
                 // Temp upload
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const res: any = await request.post(`${apiPrefix}/temp/upload`, formData);
                 console.log('Temp file uploaded:', res);
                 newFile = {
@@ -134,6 +135,7 @@ const SupplierFileManager: React.FC<SupplierFileManagerProps> = ({ supplierId, c
                 onFilesChange?.(newList);
                 onSuccess?.("ok");
             }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error('Upload error details:', error);
             const errorMsg = error.response?.data?.message || error.message || '上传失败';
@@ -175,7 +177,7 @@ const SupplierFileManager: React.FC<SupplierFileManagerProps> = ({ supplierId, c
                 onFilesChange?.(newList);
                 message.success('删除成功');
             }
-        } catch (error) {
+        } catch {
             message.error('删除失败');
         }
     };
@@ -264,13 +266,14 @@ const SupplierFileManager: React.FC<SupplierFileManagerProps> = ({ supplierId, c
         try {
             setHistoryLoading(true);
             setHistoryOpen(true);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const res: any = await request.get(`${apiPrefix}/history/${file.groupId}`);
             const filesWithToken = (res || []).map((file: SupplierFileDTO) => ({
                 ...file,
                 url: addTokenToUrl(file.url)
             }));
             setHistoryList(filesWithToken);
-        } catch (error) {
+        } catch {
             message.error('获取历史版本失败');
         } finally {
             setHistoryLoading(false);
@@ -285,6 +288,7 @@ const SupplierFileManager: React.FC<SupplierFileManagerProps> = ({ supplierId, c
         { 
             title: '操作', 
             key: 'action',
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             render: (_: any, record: SupplierFileDTO) => (
                 <Space>
                     <Button type="link" size="small" onClick={() => handlePreview(record)}>预览</Button>

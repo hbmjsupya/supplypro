@@ -17,6 +17,9 @@ public interface SupplierRepository extends JpaRepository<Supplier, Long>, JpaSp
 
     @org.springframework.data.jpa.repository.Query("SELECT MAX(s.supplierNo) FROM Supplier s")
     String findMaxSupplierNo();
+
+    @org.springframework.data.jpa.repository.Query("SELECT MAX(s.supplierNo) FROM Supplier s WHERE s.supplierNo LIKE ?1%")
+    String findMaxSupplierNoByPrefix(String prefix);
     
     java.util.List<Supplier> findByPurchaser_Username(String username);
 }

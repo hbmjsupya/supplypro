@@ -14,6 +14,7 @@ public class LogisticsProviderFile {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "logistics_provider_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private LogisticsProvider logisticsProvider;
 
     @Column(nullable = false)

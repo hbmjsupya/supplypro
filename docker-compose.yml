@@ -1,86 +1,106 @@
-version: '3.8'
+
 services:
-  supplypro-db:
-    image: mysql:8.0
-    container_name: supplypro-db
-    environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: supplypro
-    ports:
-      - "3307:3306"
-    volumes:
-      - db_data:/var/lib/mysql
-    networks:
-      - supplypro-net
-
-  redis:
-    image: redis:6.2-alpine
-    container_name: supplypro-redis
-    ports:
-      - "6379:6379"
-    networks:
-      - supplypro-net
-
-  rabbitmq:
-    image: rabbitmq:3.12-management
-    container_name: supplypro-rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    networks:
-      - supplypro-net
-
-  elasticsearch:
-    image: elasticsearch:7.17.10
-    container_name: supplypro-es
-    environment:
-      - discovery.type=single-node
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
-      - "9300:9300"
-    volumes:
-      - es_data:/usr/share/elasticsearch/data
-    networks:
-      - supplypro-net
-
-  supplypro-backend:
-    build: ./backend
-    container_name: supplypro-backend
-    ports:
-      - "8081:8080"
-    volumes:
-      - ./uploads:/app/uploads
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://supplypro-db:3306/supplypro?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: password
-      SPRING_PROFILES_ACTIVE: prod
-      SPRING_REDIS_HOST: supplypro-redis
-      SPRING_ELASTICSEARCH_URIS: http://supplypro-es:9200
-      SPRING_RABBITMQ_HOST: supplypro-rabbitmq
-    depends_on:
-      - supplypro-db
-    networks:
-      - supplypro-net
-
-  supplypro-frontend:
-    build: ./frontend
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: supplypro-frontend:${TAG:-latest}
     container_name: supplypro-frontend
     ports:
       - "80:80"
     depends_on:
       - supplypro-backend
-    networks:
-      - supplypro-net
+    restart: unless-stopped
+    init: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
 
-networks:
-  supplypro-net:
-    driver: bridge
+  supplypro-backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    image: supplypro-backend:${TAG:-latest}
+    container_name: supplypro-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - TZ=Asia/Shanghai
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/supplypro?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=guest
+      - SPRING_RABBITMQ_PASSWORD=guest
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      elasticsearch:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+    restart: unless-stopped
+    init: true
+    tmpfs:
+      - /tmp
+
+  mysql:
+    image: mysql:8.0
+    container_name: supplypro-mysql
+    ports:
+      - "3307:3306" # Map to 3307 on host to avoid conflict with local 3306
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=supplypro
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.0
+    container_name: supplypro-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  elasticsearch:
+    build: ./backend/elasticsearch
+    container_name: supplypro-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.11-management
+    container_name: supplypro-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    restart: unless-stopped
+
+  registry:
+    image: registry:2
+    container_name: supplypro-registry
+    ports:
+      - "5001:5000"
+    restart: unless-stopped
 
 volumes:
-  db_data:
-  es_data:
+  mysql_data:

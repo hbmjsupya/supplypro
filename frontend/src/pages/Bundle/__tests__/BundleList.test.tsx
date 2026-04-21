@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import BundleList from '../BundleList';
 import { BrowserRouter } from 'react-router-dom';
@@ -10,6 +10,7 @@ vi.mock('../../../utils/request', () => {
     return {
         default: {
             get: vi.fn(),
+            post: vi.fn(),
             patch: vi.fn()
         }
     };
@@ -28,6 +29,9 @@ vi.mock('react-router-dom', async () => {
 describe('BundleList Component', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(requestModule.default.get).mockReset();
+        vi.mocked(requestModule.default.post).mockReset();
+        vi.mocked(requestModule.default.patch).mockReset();
     });
 
     it('should render bundle list and verify refresh button is removed', async () => {
@@ -53,7 +57,7 @@ describe('BundleList Component', () => {
             number: 0
         };
 
-        (requestModule.default.get as any).mockResolvedValue(mockData);
+        vi.mocked(requestModule.default.get).mockResolvedValue(mockData);
 
         render(
             <BrowserRouter>
@@ -75,7 +79,7 @@ describe('BundleList Component', () => {
     });
 
     it('should handle fetch errors gracefully', async () => {
-        (requestModule.default.get as any).mockRejectedValue(new Error('Network Error'));
+        vi.mocked(requestModule.default.get).mockRejectedValue(new Error('Network Error'));
         
         // Mock console.error to avoid noise
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -87,11 +91,48 @@ describe('BundleList Component', () => {
         );
 
         await waitFor(() => {
-            // Check if error message is displayed (using Antd message which might be tricky to test in DOM, 
-            // usually requires setup, but we can check if it didn't crash)
-            // Ideally we check if loading state is false
+            expect(screen.getByText('加载失败')).toBeDefined();
         });
         
         consoleSpy.mockRestore();
     });
+
+    it('should render empty state when no bundle data', async () => {
+        vi.mocked(requestModule.default.get).mockResolvedValue({
+            content: [],
+            totalElements: 0,
+            number: 0
+        });
+
+        render(
+            <BrowserRouter>
+                <BundleList />
+            </BrowserRouter>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText('暂无组合商品')).toBeDefined();
+        });
+    });
+
+    it('should surface rate limit error message', async () => {
+        vi.mocked(requestModule.default.get)
+            .mockRejectedValueOnce({ response: { status: 429 } })
+            .mockResolvedValueOnce({
+                content: [],
+                totalElements: 0,
+                number: 0
+            });
+
+        render(
+            <BrowserRouter>
+                <BundleList />
+            </BrowserRouter>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText('请求过于频繁，请稍后重试')).toBeDefined();
+        });
+    });
+
 });

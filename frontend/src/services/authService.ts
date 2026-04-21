@@ -1,5 +1,6 @@
 import request from '../utils/request';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const login = (data: any) => {
   return request.post('/auth/signin', data);
 };

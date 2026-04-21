@@ -6,6 +6,10 @@ export interface Sku {
   name: string;
   costPrice: number;
   supplierId?: number;
+  supplier?: {
+    id: number;
+    name: string;
+  };
 }
 
 export interface Product {
@@ -35,7 +39,7 @@ export interface ProductBundleItem {
 }
 
 export const productService = {
-  getAll: (params: { page: number; size: number; name?: string; status?: string }) => {
+  getAll: (params: { page: number; size: number; keyword?: string; status?: string }) => {
     return request.get('/products', { params });
   },
 

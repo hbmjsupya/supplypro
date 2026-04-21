@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface SupplierAccountRepository extends JpaRepository<SupplierAccount, Long> {
     List<SupplierAccount> findBySupplierId(Long supplierId);
+    List<SupplierAccount> findBySupplier(com.supplypro.entity.Supplier supplier);
 }

@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface SupplierPrepaymentLogRepository extends JpaRepository<SupplierPrepaymentLog, Long> {
     List<SupplierPrepaymentLog> findBySupplierIdOrderByCreatedAtDesc(Long supplierId);
+    List<SupplierPrepaymentLog> findByLogisticsProviderIdOrderByCreatedAtDesc(Long logisticsProviderId);
+    List<SupplierPrepaymentLog> findByRelatedOrderNoAndType(String relatedOrderNo, SupplierPrepaymentLog.Type type);
 }

@@ -4,18 +4,16 @@ import com.supplypro.common.annotation.OperationLog;
 import com.supplypro.entity.Brand;
 import com.supplypro.repository.BrandRepository;
 import com.supplypro.repository.SupplierRepository;
+import com.supplypro.service.FileStorageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,11 +23,17 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 public class BrandController {
 
+    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    private static final List<String> ALLOWED_IMAGE_TYPES = Arrays.asList("png", "jpg", "jpeg", "svg", "gif", "webp");
+
     @Autowired
     private BrandRepository brandRepository;
 
     @Autowired
     private SupplierRepository supplierRepository;
+
+    @Autowired
+    private FileStorageService fileStorageService;
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> getAll(
@@ -60,26 +64,8 @@ public class BrandController {
             searchKey = firstLetter;
         }
         
-        // Permission Control
+        // Permission Control Removed - All users can see all brands
         List<Long> permittedIds = null;
-        try {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.getPrincipal() instanceof UserDetails) {
-                UserDetails user = (UserDetails) auth.getPrincipal();
-                boolean isAdmin = user.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_MODERATOR"));
-                
-                if (!isAdmin) {
-                    permittedIds = brandRepository.findBrandIdsByPurchaser(user.getUsername());
-                    if (permittedIds == null || permittedIds.isEmpty()) {
-                        permittedIds = new ArrayList<>();
-                        permittedIds.add(-1L); // Force empty result
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // Ignore if security not set up
-        }
         
         Page<Brand> pageResult = brandRepository.search(searchKey, brandStatus, permittedIds, pageable);
         
@@ -95,25 +81,8 @@ public class BrandController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getById(@PathVariable long id) {
-        // Permission Check
-        try {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.getPrincipal() instanceof UserDetails) {
-                UserDetails user = (UserDetails) auth.getPrincipal();
-                boolean isAdmin = user.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_MODERATOR"));
-                
-                if (!isAdmin) {
-                    boolean hasAccess = brandRepository.hasPermission(id, user.getUsername());
-                    if (!hasAccess) {
-                        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // Ignore
-        }
-
+        // Permission Check Removed
+        
         return brandRepository.findById(id)
                 .map(brand -> {
                     Map<String, Object> response = new HashMap<>();
@@ -151,7 +120,9 @@ public class BrandController {
                 .map(existing -> {
                     existing.setName(brand.getName());
                     existing.setTrademarkNo(brand.getTrademarkNo());
-                    existing.setIcon(brand.getIcon());
+                    if (brand.getIcon() != null) {
+                        existing.setIcon(brand.getIcon());
+                    }
                     existing.setStatus(brand.getStatus());
                     
                     if (brand.getSuppliers() != null) {
@@ -202,5 +173,52 @@ public class BrandController {
         response.put("message", "Success");
         response.put("data", brands);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/upload-icon")
+    public ResponseEntity<Map<String, Object>> uploadBrandIcon(@RequestParam("file") MultipartFile file) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            if (file.isEmpty()) {
+                response.put("code", 400);
+                response.put("message", "请选择要上传的文件");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            if (file.getSize() > MAX_FILE_SIZE) {
+                response.put("code", 400);
+                response.put("message", "文件大小超过限制，最大允许5MB");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            String originalFileName = file.getOriginalFilename();
+            String fileExtension = "";
+            if (originalFileName != null && originalFileName.contains(".")) {
+                fileExtension = originalFileName.substring(originalFileName.lastIndexOf(".") + 1).toLowerCase();
+            }
+            
+            if (!ALLOWED_IMAGE_TYPES.contains(fileExtension)) {
+                response.put("code", 400);
+                response.put("message", "不支持的文件格式，仅支持PNG、JPG、SVG、GIF、WEBP格式");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            String fileName = fileStorageService.storeFile(file);
+            String fileUrl = "/uploads/" + fileName;
+            
+            response.put("code", 200);
+            response.put("message", "图标上传成功");
+            response.put("data", Map.of(
+                "fileName", fileName,
+                "fileUrl", fileUrl
+            ));
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            response.put("code", 500);
+            response.put("message", "文件上传失败: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
     }
 }

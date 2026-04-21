@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 interface ExportColumn {
   title: string;
   dataIndex: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   render?: (value: any, record: any) => string;
 }
 
@@ -15,9 +16,10 @@ interface UseExportOptions<T> {
   batchSize?: number;
 }
 
-export const useExport = <T extends Record<string, any>>({
+export const useExport = <T extends Record<string, unknown>>({
   filenamePrefix,
   fetchData,
+
   columns,
   batchSize = 100
 }: UseExportOptions<T>) => {
@@ -33,6 +35,7 @@ export const useExport = <T extends Record<string, any>>({
       // 1. Fetch Data
       const data = await fetchData();
       const total = data.length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const processedData: any[] = [];
 
       for (let i = 0; i < total; i += batchSize) {
@@ -42,6 +45,7 @@ export const useExport = <T extends Record<string, any>>({
         const chunk = data.slice(i, Math.min(i + batchSize, total));
         
         const processedChunk = chunk.map(item => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const row: Record<string, any> = {};
           columns.forEach(col => {
             const val = item[col.dataIndex];

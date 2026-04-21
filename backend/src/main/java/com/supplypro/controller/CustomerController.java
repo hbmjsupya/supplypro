@@ -69,6 +69,12 @@ public class CustomerController {
     @PostMapping
     public ResponseEntity<Map<String, Object>> create(@RequestBody Customer customer) {
         if (customer == null) return ResponseEntity.badRequest().build();
+        
+        // Generate Customer No if missing
+        if (customer.getCustomerNo() == null || customer.getCustomerNo().isEmpty()) {
+            customer.setCustomerNo("CUST" + System.currentTimeMillis());
+        }
+        
         Customer saved = customerRepository.save(customer);
         Map<String, Object> response = new HashMap<>();
         response.put("code", 200);

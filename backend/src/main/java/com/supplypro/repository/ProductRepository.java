@@ -6,9 +6,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.Query;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
@@ -23,4 +25,8 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     boolean existsByName(String name);
 
     boolean existsByNameAndIdNot(String name, Long id);
+
+    List<Product> findByType(Product.ProductType type);
+    
+    Page<Product> findByStatus(Product.Status status, Pageable pageable);
 }

@@ -130,9 +130,9 @@ public class SupplierServiceImpl implements SupplierService {
         BeanUtils.copyProperties(dto, supplier, "purchaserId");
 
         // Generate ID: GYS + 7 digits
-        String maxSupplierNo = supplierRepository.findMaxSupplierNo();
+        String maxSupplierNo = supplierRepository.findMaxSupplierNoByPrefix("GYS");
         long nextId = 1;
-        if (StringUtils.hasText(maxSupplierNo) && maxSupplierNo.startsWith("GYS")) {
+        if (StringUtils.hasText(maxSupplierNo)) {
             try {
                 String numStr = maxSupplierNo.substring(3);
                 nextId = Long.parseLong(numStr) + 1;
@@ -141,6 +141,13 @@ public class SupplierServiceImpl implements SupplierService {
             }
         }
         String supplierNo = String.format("GYS%07d", nextId);
+        
+        // Defensive check for collision
+        while (supplierRepository.findBySupplierNo(supplierNo) != null) {
+            nextId++;
+            supplierNo = String.format("GYS%07d", nextId);
+        }
+        
         supplier.setSupplierNo(supplierNo);
 
         // Set Purchaser
@@ -235,6 +242,22 @@ public class SupplierServiceImpl implements SupplierService {
             throw new BusinessException(404, "Supplier not found");
         }
         supplierRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional
+    public SupplierDTO toggleStatus(Long id, String status) {
+        Supplier supplier = supplierRepository.findById(id)
+            .orElseThrow(() -> new BusinessException(404, "Supplier not found"));
+        
+        try {
+            Supplier.Status newStatus = Supplier.Status.valueOf(status.toUpperCase());
+            supplier.setStatus(newStatus);
+            supplier = supplierRepository.save(supplier);
+            return convertToDTO(supplier);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(400, "Invalid status value: " + status);
+        }
     }
 
     @Override

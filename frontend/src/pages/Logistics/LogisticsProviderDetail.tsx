@@ -1,11 +1,39 @@
-import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Card, Space, Select, Table, Row, Col, message, Modal, Radio, Switch, Tag, InputNumber } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Form, Input, Button, Card, Space, Select, Table, Row, Col, message, Modal, Radio, Switch, InputNumber } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import PageDoc from '../../components/PageDoc';
 import request from '../../utils/request';
-import SupplierFileManager from '../Supplier/SupplierFileManager';
+import { LogisticsProvider } from '../../types/logistics';
+import SupplierFileManager, { SupplierFileDTO } from '../Supplier/SupplierFileManager';
 import BankSelect from '../../components/Bank/BankSelect';
+
+interface LogisticsAccount {
+    key?: number;
+    id?: number;
+    type: 'COMPANY' | 'PERSONAL';
+    name: string;
+    bank: string;
+    bankId?: string;
+    account: string;
+    isDefault: boolean;
+    status: boolean;
+}
+
+interface User {
+    id: number;
+    username: string;
+}
+
+interface LogisticsProviderFormValues {
+    name: string;
+    contactPerson: string;
+    contactPhone: string;
+    purchaser: number;
+    settlementType: 'CASH' | 'PREPAYMENT';
+    settlementCycle?: 'Daily' | 'Weekly' | 'Monthly';
+    prepaymentWarning?: number;
+}
 
 const LogisticsProviderDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -14,51 +42,32 @@ const LogisticsProviderDetail: React.FC = () => {
   const [form] = Form.useForm();
   
   // Account State
-  const [accounts, setAccounts] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<LogisticsAccount[]>([]);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [accountForm] = Form.useForm();
   const [deletedAccountIds, setDeletedAccountIds] = useState<number[]>([]);
-  const [bankList, setBankList] = useState<any[]>([]);
-  const [userList, setUserList] = useState<any[]>([]);
+  const [userList, setUserList] = useState<User[]>([]);
 
   // File Upload State for New Provider
-  const [qualFiles, setQualFiles] = useState<any[]>([]);
-  const [contractFiles, setContractFiles] = useState<any[]>([]);
-
-  useEffect(() => {
-    handleSearchBank('');
-  }, []);
+  const [qualFiles, setQualFiles] = useState<SupplierFileDTO[]>([]);
+  const [contractFiles, setContractFiles] = useState<SupplierFileDTO[]>([]);
 
   const handleSearchUser = async (value: string) => {
     if (value) {
       try {
-        const res: any = await request.get('/users/list', { params: { username: value } });
-        setUserList(res.content || []);
+         const res = await request.get<{ content: User[] }>('/users/list', { params: { username: value } });
+         // @ts-expect-error backend response type might vary
+         setUserList(res.content || res || []);
       } catch (error) {
         console.error(error);
       }
     }
   };
 
-  const handleSearchBank = async (value: string) => {
+  const loadData = useCallback(async (providerId: string) => {
     try {
-      const res: any = await request.get('/banks', { params: { name: value } });
-      setBankList(res.content || []);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  useEffect(() => {
-    if (!isCreate && id) {
-      loadData(id);
-    }
-  }, [id, isCreate]);
-
-  const loadData = async (providerId: string) => {
-    try {
-      const res: any = await request.get(`/logistics/${providerId}`);
-      const data = res; // Assuming request interceptor returns data
+      const res = await request.get<LogisticsProvider>(`/logistics/${providerId}`);
+      const data = res as unknown as Record<string, unknown>; // Relax type for form mapping
 
       // Map settlement period to cycle
       if (data.settlementPeriod === 1) data.settlementCycle = 'Daily';
@@ -76,23 +85,32 @@ const LogisticsProviderDetail: React.FC = () => {
       // Map purchaser
       data.purchaser = data.purchaserId;
       if (data.purchaserId && data.purchaserName) {
-         setUserList([{ id: data.purchaserId, username: data.purchaserName }]);
+         setUserList([{ id: Number(data.purchaserId), username: String(data.purchaserName) }]);
       }
 
       form.setFieldsValue(data);
 
-      const accountsRes: any = await request.get(`/logistics/${providerId}/accounts`);
-      if (Array.isArray(accountsRes)) {
-         setAccounts(accountsRes.map((a: any, index: number) => ({ ...a, key: a.id || index })));
+      const accountsRes = await request.get<{ content: LogisticsAccount[] }>(`/logistics/${providerId}/accounts`);
+      // @ts-expect-error backend response type might vary
+      const accountsData = accountsRes?.content || accountsRes;
+      if (Array.isArray(accountsData)) {
+         setAccounts(accountsData.map((a: LogisticsAccount, index: number) => ({ ...a, key: a.id || index })));
       }
     } catch (error) {
       console.error(error);
       message.error('加载数据失败');
       navigate('/supply-chain/logistics-provider');
     }
-  };
+  }, [form, navigate]);
 
-  const onFinish = async (values: any) => {
+
+  useEffect(() => {
+    if (!isCreate && id) {
+      loadData(id);
+    }
+  }, [id, isCreate, loadData]);
+
+  const onFinish = async (values: LogisticsProviderFormValues) => {
     // Validate accounts
     if (accounts.length === 0) {
         message.warning('请至少添加一个结算账户');
@@ -119,15 +137,26 @@ const LogisticsProviderDetail: React.FC = () => {
         prepaymentWarning: values.settlementType === 'PREPAYMENT' ? values.prepaymentWarning : undefined,
         purchaserId: values.purchaser,
         newFiles: isCreate ? [...qualFiles, ...contractFiles].map(f => {
-            if (f.response && f.response.data) {
-                // Temp file uploaded
-                return {
-                    ...f.response.data,
-                    category: f.category || (qualFiles.includes(f) ? 'QUALIFICATION' : 'CONTRACT'),
-                    description: f.name
-                };
-            }
-            return null;
+            // SupplierFileDTO structure is different from Antd UploadFile
+            // Assuming SupplierFileManager returns processed DTOs which are already correct
+            // But wait, SupplierFileManager returns SupplierFileDTO[], but the backend expects what?
+            // The backend likely expects a list of file info.
+            // If isCreate is true, we are creating a new provider with files.
+            // The payload logic was:
+            // if (f.response && f.response.data) ...
+            // This logic assumes `f` is an Antd UploadFile with response.
+            // But now `qualFiles` is `SupplierFileDTO[]`.
+            // `SupplierFileDTO` already has `url`, `originalFileName` etc.
+            // So we can just map it directly.
+            return {
+                originalFileName: f.originalFileName,
+                storedFileName: f.storedFileName,
+                fileType: f.fileType,
+                fileSize: f.fileSize,
+                url: f.url,
+                category: f.category,
+                description: f.description
+            };
         }).filter(Boolean) : undefined
       };
 
@@ -136,9 +165,10 @@ const LogisticsProviderDetail: React.FC = () => {
          await request.put(`/logistics/${id}`, payload);
          message.success('更新成功');
       } else {
-         const res: any = await request.post('/logistics', payload);
-         if (res && res.id) {
-             providerId = res.id;
+         const res = await request.post<{ id: string }>('/logistics', payload);
+         const resData = res.data || res;
+         if (resData && resData.id) {
+             providerId = resData.id;
          } else {
              throw new Error('创建失败: 未返回ID');
          }
@@ -172,7 +202,7 @@ const LogisticsProviderDetail: React.FC = () => {
 
       message.success('保存成功');
       navigate('/supply-chain/logistics-provider');
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
       message.error('保存失败');
     }

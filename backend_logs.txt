@@ -1,0 +1,500 @@
+        brand0_.icon as icon5_2_,
+        brand0_.name as name6_2_,
+        brand0_.status as status7_2_,
+        brand0_.trademark_no as trademar8_2_,
+        brand0_.updated_at as updated_9_2_,
+        brand0_.updated_by as updated10_2_,
+        (select
+            count(*) 
+        from
+            products p 
+        where
+            p.brand_id = brand0_.id) as formula1_ 
+    from
+        brands brand0_ 
+    where
+        brand0_.name=?
+Hibernate: 
+    select
+        count(*) as col_0_0_ 
+    from
+        products product0_
+Hibernate: 
+    select
+        count(*) as col_0_0_ 
+    from
+        logistics_providers logisticsp0_
+<<< Data Recovery Check Completed.
+2026-02-12 19:15:50.267  INFO 6 --- [           main] c.s.s.SupplierFileMigrationService       : Starting Supplier File Migration...
+Hibernate: 
+    select
+        supplier0_.id as id1_34_,
+        supplier0_.address as address2_34_,
+        supplier0_.city_code as city_cod3_34_,
+        supplier0_.contact_person as contact_4_34_,
+        supplier0_.contact_phone as contact_5_34_,
+        supplier0_.contract_file as contract6_34_,
+        supplier0_.coop_end_time as coop_end7_34_,
+        supplier0_.coop_start_time as coop_sta8_34_,
+        supplier0_.created_at as created_9_34_,
+        supplier0_.district_code as distric10_34_,
+        supplier0_.email as email11_34_,
+        supplier0_.name as name12_34_,
+        supplier0_.org_code as org_cod13_34_,
+        supplier0_.prepayment_balance as prepaym14_34_,
+        supplier0_.prepayment_warning as prepaym15_34_,
+        supplier0_.province_code as provinc16_34_,
+        supplier0_.purchaser_id as purchas25_34_,
+        supplier0_.qualification_file as qualifi17_34_,
+        supplier0_.receiver_name as receive18_34_,
+        supplier0_.receiver_phone as receive19_34_,
+        supplier0_.settlement_period as settlem20_34_,
+        supplier0_.settlement_type as settlem21_34_,
+        supplier0_.status as status22_34_,
+        supplier0_.supplier_no as supplie23_34_,
+        supplier0_.updated_at as updated24_34_ 
+    from
+        suppliers supplier0_
+2026-02-12 19:15:50.274  INFO 6 --- [           main] c.s.s.SupplierFileMigrationService       : Supplier File Migration Completed.
+2026-02-12 19:15:52.192  INFO 6 --- [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-02-12 19:15:52.192  INFO 6 --- [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-02-12 19:15:52.194  INFO 6 --- [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
+2026-02-12 19:15:52.264  WARN 6 --- [nio-8080-exec-1] org.elasticsearch.client.RestClient      : request [GET http://elasticsearch:9200/_cluster/health/] returned 1 warnings: [299 Elasticsearch-7.17.10-fecd68e3150eda0c307ab9a9d7557f5d5fd71349 "Elasticsearch built-in security features are not enabled. Without authentication, your cluster could be accessible to anyone. See https://www.elastic.co/guide/en/elasticsearch/reference/7.17/security-minimal-setup.html to enable security."]
+2026-02-12 19:19:09.689  INFO 6 --- [nio-8080-exec-3] com.supplypro.controller.AuthController  : Attempting login for user: admin
+Hibernate: 
+    select
+        user0_.id as id1_37_,
+        user0_.created_at as created_2_37_,
+        user0_.email as email3_37_,
+        user0_.full_name as full_nam4_37_,
+        user0_.password as password5_37_,
+        user0_.phone as phone6_37_,
+        user0_.updated_at as updated_7_37_,
+        user0_.username as username8_37_ 
+    from
+        users user0_ 
+    where
+        user0_.username=?
+Hibernate: 
+    select
+        roles0_.user_id as user_id1_36_1_,
+        roles0_.role_id as role_id2_36_1_,
+        role1_.id as id1_24_0_,
+        role1_.name as name2_24_0_ 
+    from
+        user_roles roles0_ 
+    inner join
+        roles role1_ 
+            on roles0_.role_id=role1_.id 
+    where
+        roles0_.user_id=?
+2026-02-12 19:19:09.902  INFO 6 --- [nio-8080-exec-3] com.supplypro.controller.AuthController  : Login successful for user: admin
+Hibernate: 
+    select
+        user0_.id as id1_37_,
+        user0_.created_at as created_2_37_,
+        user0_.email as email3_37_,
+        user0_.full_name as full_nam4_37_,
+        user0_.password as password5_37_,
+        user0_.phone as phone6_37_,
+        user0_.updated_at as updated_7_37_,
+        user0_.username as username8_37_ 
+    from
+        users user0_ 
+    where
+        user0_.username=?
+Hibernate: 
+    select
+        roles0_.user_id as user_id1_36_1_,
+        roles0_.role_id as role_id2_36_1_,
+        role1_.id as id1_24_0_,
+        role1_.name as name2_24_0_ 
+    from
+        user_roles roles0_ 
+    inner join
+        roles role1_ 
+            on roles0_.role_id=role1_.id 
+    where
+        roles0_.user_id=?
+2026-02-12 19:19:10.010  INFO 6 --- [nio-8080-exec-4] c.s.common.aspect.OperationLogAspect     : OPERATION LOG: User=admin, Method=PurchaseOrderController.create, Args=[PurchaseOrder(id=null, orderNo=null, type=INBOUND, totalAmount=50.0, status=PENDING, deliveryDate=2026-12-31, warehouseId=1, supplierId=1, bizType=null, bizNo=null, platformOrderNo=null, remark=Auto-verification PO 1770923949.916063, settlementStatus=UNSETTLED, inboundOrderNo=null, inboundOrderId=null, payableAmount=null, settledAmount=null, inboundOrderStatus=null, isFromStockIn=false, createdBy=null, createdAt=null, updatedAt=null, contactName=null, contactPhone=null, province=null, city=null, district=null, detailAddress=null, isManualAddress=false, attachments=null, logisticsCompany=null, trackingNumber=null, shippedAt=null, expectedArrival=null, deliverer=null, delivererPhone=null, plateNumber=null, logisticsFee=null, shippingStatus=UNSHIPPED)], Time=2026-02-13T03:19:10.010486922
+2026-02-12 19:19:10.014  INFO 6 --- [nio-8080-exec-4] c.s.controller.PurchaseOrderController   : Create PO request received. OrderNo: null
+2026-02-12 19:19:10.014  INFO 6 --- [nio-8080-exec-4] c.s.controller.PurchaseOrderController   : Items count: 1
+2026-02-12 19:19:10.019  INFO 6 --- [nio-8080-exec-4] c.s.s.impl.PurchaseOrderServiceImpl      : Generating Inbound Purchase Order. WarehouseID: 1, Items: 1
+2026-02-12 19:19:10.029  INFO 6 --- [nio-8080-exec-4] c.s.s.impl.PurchaseOrderServiceImpl      : DEBUG: Checking Item index 0: PurchaseOrderItem(id=null, productId=1, product=null, quantity=10, unitPrice=5.0, totalPrice=50.0, spec=null)
+Hibernate: 
+    insert 
+    into
+        purchase_orders
+        (attachments, biz_no, biz_type, city, contact_name, contact_phone, created_at, created_by, deliverer, deliverer_phone, delivery_date, detail_address, district, expected_arrival, is_from_stock_in, is_manual_address, logistics_company, logistics_fee, order_no, plate_number, platform_order_no, province, remark, settlement_id, settlement_status, shipped_at, shipping_status, status, supplier_id, total_amount, tracking_number, type, warehouse_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    insert 
+    into
+        purchase_order_items
+        (product_id, order_id, quantity, spec, total_price, unit_price) 
+    values
+        (?, ?, ?, ?, ?, ?)
+Hibernate: 
+    select
+        warehouse0_.id as id1_39_0_,
+        warehouse0_.address as address2_39_0_,
+        warehouse0_.admins as admins3_39_0_,
+        warehouse0_.city as city4_39_0_,
+        warehouse0_.city_code as city_cod5_39_0_,
+        warehouse0_.code as code6_39_0_,
+        warehouse0_.created_at as created_7_39_0_,
+        warehouse0_.district as district8_39_0_,
+        warehouse0_.district_code as district9_39_0_,
+        warehouse0_.manager as manager10_39_0_,
+        warehouse0_.name as name11_39_0_,
+        warehouse0_.province as provinc12_39_0_,
+        warehouse0_.province_code as provinc13_39_0_,
+        warehouse0_.region as region14_39_0_,
+        warehouse0_.status as status15_39_0_,
+        warehouse0_.updated_at as updated16_39_0_,
+        managers1_.warehouse_id as warehous1_38_1_,
+        user2_.id as user_id2_38_1_,
+        user2_.id as id1_37_2_,
+        user2_.created_at as created_2_37_2_,
+        user2_.email as email3_37_2_,
+        user2_.full_name as full_nam4_37_2_,
+        user2_.password as password5_37_2_,
+        user2_.phone as phone6_37_2_,
+        user2_.updated_at as updated_7_37_2_,
+        user2_.username as username8_37_2_,
+        roles3_.user_id as user_id1_36_3_,
+        role4_.id as role_id2_36_3_,
+        role4_.id as id1_24_4_,
+        role4_.name as name2_24_4_ 
+    from
+        warehouses warehouse0_ 
+    left outer join
+        warehouse_managers managers1_ 
+            on warehouse0_.id=managers1_.warehouse_id 
+    left outer join
+        users user2_ 
+            on managers1_.user_id=user2_.id 
+    left outer join
+        user_roles roles3_ 
+            on user2_.id=roles3_.user_id 
+    left outer join
+        roles role4_ 
+            on roles3_.role_id=role4_.id 
+    where
+        warehouse0_.id=?
+Hibernate: 
+    select
+        product0_.id as id1_18_0_,
+        product0_.brand_id as brand_id3_18_0_,
+        product0_.brand_en_name as brand_en2_18_0_,
+        product0_.brand_logo as brand_lo4_18_0_,
+        product0_.brand_zh_name as brand_zh5_18_0_,
+        product0_.category_code as category6_18_0_,
+        product0_.category_name as category7_18_0_,
+        product0_.category_version as category8_18_0_,
+        product0_.created_at as created_9_18_0_,
+        product0_.created_by as created10_18_0_,
+        product0_.default_supplier_id as default11_18_0_,
+        product0_.logistics_template as logisti12_18_0_,
+        product0_.name as name13_18_0_,
+        product0_.promo_file as promo_f14_18_0_,
+        product0_.sku_code as sku_cod15_18_0_,
+        product0_.status as status16_18_0_,
+        product0_.tax_code as tax_cod18_18_0_,
+        product0_.tax_class as tax_cla17_18_0_,
+        product0_.tax_effective_date as tax_eff19_18_0_,
+        product0_.tax_rate as tax_rat20_18_0_,
+        product0_.type as type21_18_0_,
+        product0_.updated_at as updated22_18_0_,
+        product0_.updated_by as updated23_18_0_,
+        (SELECT
+            s.name 
+        FROM
+            suppliers s 
+        WHERE
+            s.id = product0_.default_supplier_id) as formula2_0_ 
+    from
+        products product0_ 
+    where
+        product0_.id=?
+Hibernate: 
+    insert 
+    into
+        inbound_orders
+        (actual_arrival, city, confirmed_by, confirmed_ip, contact_email, contact_name, contact_phone, created_at, deliverer, deliverer_phone, delivery_address, detail_address, district, expected_arrival, inbound_date, inbound_no, logistics_company, logistics_fee, plate_number, province, purchase_order_id, shipped_at, status, tracking_no, warehouse_id, warehouse_code) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-02-12 19:19:10.087  WARN 6 --- [nio-8080-exec-4] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Error: 1062, SQLState: 23000
+2026-02-12 19:19:10.088 ERROR 6 --- [nio-8080-exec-4] o.h.engine.jdbc.spi.SqlExceptionHelper   : Duplicate entry 'IN202602130310001' for key 'inbound_orders.inbound_no'
+2026-02-12 19:19:10.094 ERROR 6 --- [nio-8080-exec-4] c.s.s.impl.PurchaseOrderServiceImpl      : Failed to create Inbound Order synchronously: could not execute statement; SQL [n/a]; constraint [inbound_orders.inbound_no]; nested exception is org.hibernate.exception.ConstraintViolationException: could not execute statement
+2026-02-12 19:19:10.096 ERROR 6 --- [nio-8080-exec-4] c.s.controller.PurchaseOrderController   : Failed to create Inbound PO: Failed to create associated Inbound Order: could not execute statement; SQL [n/a]; constraint [inbound_orders.inbound_no]; nested exception is org.hibernate.exception.ConstraintViolationException: could not execute statement
+
+java.lang.RuntimeException: Failed to create associated Inbound Order: could not execute statement; SQL [n/a]; constraint [inbound_orders.inbound_no]; nested exception is org.hibernate.exception.ConstraintViolationException: could not execute statement
+	at com.supplypro.service.impl.PurchaseOrderServiceImpl.generateInboundPurchaseOrder(PurchaseOrderServiceImpl.java:312)
+	at com.supplypro.service.impl.PurchaseOrderServiceImpl$$FastClassBySpringCGLIB$$c2c0320.invoke(<generated>)
+	at org.springframework.cglib.proxy.MethodProxy.invoke(MethodProxy.java:218)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.invokeJoinpoint(CglibAopProxy.java:792)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:762)
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:388)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:762)
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:97)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:762)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:707)
+	at com.supplypro.service.impl.PurchaseOrderServiceImpl$$EnhancerBySpringCGLIB$$7e4e412f.generateInboundPurchaseOrder(<generated>)
+	at com.supplypro.controller.PurchaseOrderController.create(PurchaseOrderController.java:267)
+	at com.supplypro.controller.PurchaseOrderController$$FastClassBySpringCGLIB$$b872c9b4.invoke(<generated>)
+	at org.springframework.cglib.proxy.MethodProxy.invoke(MethodProxy.java:218)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.invokeJoinpoint(CglibAopProxy.java:792)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:762)
+	at org.springframework.aop.framework.adapter.AfterReturningAdviceInterceptor.invoke(AfterReturningAdviceInterceptor.java:57)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:175)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:762)
+	at org.springframework.aop.framework.adapter.MethodBeforeAdviceInterceptor.invoke(MethodBeforeAdviceInterceptor.java:58)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:175)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:762)
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:388)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:762)
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:97)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:762)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:707)
+	at com.supplypro.controller.PurchaseOrderController$$EnhancerBySpringCGLIB$$c7ee3110.create(<generated>)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(Unknown Source)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(Unknown Source)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205)
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:150)
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:117)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:895)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:808)
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1072)
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:965)
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1006)
+	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:909)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:555)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:883)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:623)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:209)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:111)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:337)
+	at org.springframework.security.web.access.intercept.FilterSecurityInterceptor.invoke(FilterSecurityInterceptor.java:115)
+	at org.springframework.security.web.access.intercept.FilterSecurityInterceptor.doFilter(FilterSecurityInterceptor.java:81)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:122)
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:116)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:126)
+	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:81)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:109)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:149)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at com.supplypro.config.JwtAuthenticationFilter.doFilterInternal(JwtAuthenticationFilter.java:49)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:103)
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:89)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
+	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.context.SecurityContextPersistenceFilter.doFilter(SecurityContextPersistenceFilter.java:112)
+	at org.springframework.security.web.context.SecurityContextPersistenceFilter.doFilter(SecurityContextPersistenceFilter.java:82)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:55)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:221)
+	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:186)
+	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:354)
+	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:267)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at org.springframework.boot.actuate.metrics.web.servlet.WebMvcMetricsFilter.doFilterInternal(WebMvcMetricsFilter.java:96)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at com.supplypro.common.filter.RateLimitFilter.doFilterInternal(RateLimitFilter.java:42)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:168)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:481)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:130)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:342)
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:390)
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:928)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1794)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+	at java.base/java.lang.Thread.run(Unknown Source)
+
+2026-02-12 19:19:10.098  INFO 6 --- [nio-8080-exec-4] c.s.common.aspect.OperationLogAspect     : Request Args : [PurchaseOrder(id=32, orderNo=PO1770923950015, type=INBOUND, totalAmount=50.0, status=CONFIRMED, deliveryDate=2026-12-31, warehouseId=1, supplierId=1, bizType=商品入库, bizNo=null, platformOrderNo=null, remark=Auto-verification PO 1770923949.916063, settlementStatus=UNSETTLED, inboundOrderNo=null, inboundOrderId=null, payableAmount=null, settledAmount=null, inboundOrderStatus=null, isFromStockIn=true, createdBy=admin, createdAt=2026-02-13T03:19:10.043339380, updatedAt=null, contactName=null, contactPhone=null, province=null, city=null, district=null, detailAddress=null, isManualAddress=false, attachments=null, logisticsCompany=null, trackingNumber=null, shippedAt=null, expectedArrival=null, deliverer=null, delivererPhone=null, plateNumber=null, logisticsFee=null, shippingStatus=UNSHIPPED)]
+2026-02-12 19:19:10.099  INFO 6 --- [nio-8080-exec-4] c.s.common.aspect.OperationLogAspect     : Response : <400 BAD_REQUEST Bad Request,{message=Failed to create associated Inbound Order: could not execute statement; SQL [n/a]; constraint [inbound_orders.inbound_no]; nested exception is org.hibernate.exception.ConstraintViolationException: could not execute statement},[]>
+2026-02-12 19:19:10.103 ERROR 6 --- [nio-8080-exec-4] c.s.c.exception.GlobalExceptionHandler   : Exception caught: [User: admin] [URL: /api/purchase-orders] [Params: null] [Error: Transaction silently rolled back because it has been marked as rollback-only]
+
+org.springframework.transaction.UnexpectedRollbackException: Transaction silently rolled back because it has been marked as rollback-only
+	at org.springframework.transaction.support.AbstractPlatformTransactionManager.processCommit(AbstractPlatformTransactionManager.java:752)
+	at org.springframework.transaction.support.AbstractPlatformTransactionManager.commit(AbstractPlatformTransactionManager.java:711)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.commitTransactionAfterReturning(TransactionAspectSupport.java:654)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:407)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:762)
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:97)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:762)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:707)
+	at com.supplypro.controller.PurchaseOrderController$$EnhancerBySpringCGLIB$$c7ee3110.create(<generated>)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(Unknown Source)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(Unknown Source)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205)
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:150)
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:117)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:895)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:808)
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1072)
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:965)
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1006)
+	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:909)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:555)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:883)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:623)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:209)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:111)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:337)
+	at org.springframework.security.web.access.intercept.FilterSecurityInterceptor.invoke(FilterSecurityInterceptor.java:115)
+	at org.springframework.security.web.access.intercept.FilterSecurityInterceptor.doFilter(FilterSecurityInterceptor.java:81)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:122)
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:116)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:126)
+	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:81)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:109)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:149)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at com.supplypro.config.JwtAuthenticationFilter.doFilterInternal(JwtAuthenticationFilter.java:49)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:103)
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:89)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
+	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.context.SecurityContextPersistenceFilter.doFilter(SecurityContextPersistenceFilter.java:112)
+	at org.springframework.security.web.context.SecurityContextPersistenceFilter.doFilter(SecurityContextPersistenceFilter.java:82)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:55)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346)
+	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:221)
+	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:186)
+	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:354)
+	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:267)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at org.springframework.boot.actuate.metrics.web.servlet.WebMvcMetricsFilter.doFilterInternal(WebMvcMetricsFilter.java:96)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at com.supplypro.common.filter.RateLimitFilter.doFilterInternal(RateLimitFilter.java:42)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:168)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:481)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:130)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:342)
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:390)
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:928)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1794)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+	at java.base/java.lang.Thread.run(Unknown Source)
+

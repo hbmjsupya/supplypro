@@ -100,6 +100,22 @@ System to monitor SKU stock levels in real-time and trigger alerts when falling 
 
 ---
 
+## 5. Stability & Error Handling Patterns (稳定性与错误处理模式)
+**Status:** ✅ Documented
+**Description:** 
+A collection of proven patterns and troubleshooting guides for common system issues.
+
+**Key Resources:**
+- **Full Guide:** [TROUBLESHOOTING.md](../../TROUBLESHOOTING.md) (Root Directory)
+
+**Core Patterns:**
+1.  **Robust Enum Mapping:** Use `AttributeConverter` to handle case-insensitive/fuzzy DB values for Enums (Fixes 500 Errors).
+2.  **Lazy Loading Safety:** Explicitly trigger lazy fields or use DTOs to prevent `LazyInitializationException` during serialization.
+3.  **Secure Logout:** Implement Redis-based JWT blacklisting for true stateless logout.
+4.  **Frontend Resilience:** Use `try-finally` for critical cleanup operations (e.g., logout) and ensure comprehensive API filtering parameters.
+
+---
+
 ## Troubleshooting & Best Practices
 
 ### Database Unique Constraint Violation (ProductBrand)

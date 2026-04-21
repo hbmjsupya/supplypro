@@ -1,3 +1,17 @@
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,circuitbreakers
+  health:
+    show-details: always
+    circuitbreakers:
+      enabled: true
+    db:
+      enabled: true
+    redis:
+      enabled: true
+
 server:
   port: 8080
 
@@ -8,21 +22,36 @@ spring:
   application:
     name: supplypro-backend
   datasource:
-    url: jdbc:mysql://localhost:3307/supplypro?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8
+    url: jdbc:mysql://localhost:3307/supplypro?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8
     username: root
     password: password
     driver-class-name: com.mysql.cj.jdbc.Driver
+    type: com.zaxxer.hikari.HikariDataSource
+    hikari:
+      pool-name: SupplyProHikariPool
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      auto-commit: true
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:
         format_sql: true
         default_batch_fetch_size: 100
+  logging:
+    level:
+      org.springframework.security: DEBUG
+      com.supplypro: DEBUG
   flyway:
-    enabled: true
+    enabled: false
     baseline-on-migrate: true
+    validate-on-migrate: false
+    clean-disabled: false
   sql:
     init:
       mode: never
@@ -30,16 +59,25 @@ spring:
       # data-locations: classpath:db/migration/V1.1__init_data.sql
   servlet:
     multipart:
-      max-file-size: 50MB
-      max-request-size: 50MB
+      max-file-size: 100MB
+      max-request-size: 100MB
   redis:
     host: localhost
     port: 6379
     timeout: 2000
+  elasticsearch:
+    uris: http://localhost:9200
+    connection-timeout: 5s
+    socket-timeout: 60s
 
 resilience4j:
   retry:
     instances:
+      purchaseOrderList:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
       taxApi:
         maxAttempts: 3
         waitDuration: 2s
@@ -47,6 +85,16 @@ resilience4j:
         exponentialBackoffMultiplier: 2
   circuitbreaker:
     instances:
+      purchaseOrderList:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 3
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 5s
       taxApi:
         registerHealthIndicator: true
         slidingWindowSize: 10
@@ -67,7 +115,10 @@ supplypro:
   app:
     jwtSecret: supplyproSecretKeyForJwtAuthenticationSupplyProSecretKeyForJwtAuthentication
     jwtExpirationMs: 86400000
+  rate-limit:
+    enabled: true
+    requests-per-second: 100
 
 file:
   upload-dir: uploads
-  allowed-types: jpg,jpeg,png,pdf,doc,docx,xls,xlsx
+  allowed-types: jpg,jpeg,png,gif,webp,pdf,doc,docx,xls,xlsx

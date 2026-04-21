@@ -57,7 +57,11 @@ export const REGION_DATA: Region[] = [
         name: '深圳市',
         children: [
           { code: '440305', name: '南山区' },
-          { code: '440304', name: '福田区' }
+          { code: '440304', name: '福田区' },
+          { code: '440306', name: '宝安区' },
+          { code: '440307', name: '龙岗区' },
+          { code: '440308', name: '盐田区' },
+          { code: '440309', name: '龙华区' }
         ]
       },
       {

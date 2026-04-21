@@ -6,11 +6,17 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface SkuRepository extends JpaRepository<Sku, Long> {
     Sku findBySkuCode(String skuCode);
 
+    List<Sku> findByProductId(Long productId);
+
     @Modifying
     @Query("UPDATE Sku s SET s.supplier = NULL")
     void clearAllSuppliers();
+
+    void deleteByProductId(Long productId);
 }

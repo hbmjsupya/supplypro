@@ -11,4 +11,7 @@ import java.util.List;
 public interface OutboundOrderRepository extends JpaRepository<OutboundOrder, Long>, JpaSpecificationExecutor<OutboundOrder> {
     OutboundOrder findByOutboundNo(String outboundNo);
     List<OutboundOrder> findBySettlementStatusNot(OutboundOrder.SettlementStatus status);
+    List<OutboundOrder> findByTrackingNo(String trackingNo);
+    List<OutboundOrder> findByStatus(OutboundOrder.Status status);
+    void deleteByWarehouseId(Long warehouseId);
 }

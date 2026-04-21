@@ -32,18 +32,22 @@ export interface PageResult<T> {
 }
 
 export const getBanks = (params: { page?: number; size?: number } & BankSearchCriteria) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return request.get<any, PageResult<BankDTO>>('/banks', { params });
 };
 
 export const getBankById = (id: number) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return request.get<any, BankDTO>(`/banks/${id}`);
 };
 
 export const createBank = (data: Partial<BankDTO>) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return request.post<any, BankDTO>('/banks', data);
 };
 
 export const updateBank = (id: number, data: Partial<BankDTO>) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return request.put<any, BankDTO>(`/banks/${id}`, data);
 };
 

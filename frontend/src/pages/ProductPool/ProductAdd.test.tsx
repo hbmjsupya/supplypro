@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ProductAdd from './ProductAdd';
 import request from '../../utils/request';
@@ -46,10 +46,11 @@ describe('ProductAdd Component Automation Test', () => {
         vi.clearAllMocks();
         
         // Default useParams to empty (Add mode)
-        (router.useParams as any).mockReturnValue({});
+        vi.mocked(router.useParams).mockReturnValue({});
 
         // Default mocks
-        (request.get as any).mockImplementation((url: string, config: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        vi.mocked(request.get).mockImplementation((url: string, config?: any) => {
             // Category Mock
             if (url === '/product-categories') {
                 const params = config?.params;
@@ -128,8 +129,8 @@ describe('ProductAdd Component Automation Test', () => {
             return Promise.resolve({});
         });
         
-        (request.post as any).mockResolvedValue({ code: 200, message: 'Success' });
-        (request.put as any).mockResolvedValue({ code: 200, message: 'Success' });
+        vi.mocked(request.post).mockResolvedValue({ code: 200, message: 'Success' });
+        vi.mocked(request.put).mockResolvedValue({ code: 200, message: 'Success' });
     });
 
     it('Scenario 1: Should render and load initial data', async () => {
@@ -242,7 +243,7 @@ describe('ProductAdd Component Automation Test', () => {
 
     it('Scenario 5: Should load data in Edit mode', async () => {
         // Mock ID
-        (router.useParams as any).mockReturnValue({ id: '123' });
+        vi.mocked(router.useParams).mockReturnValue({ id: '123' });
 
         render(
             <BrowserRouter>

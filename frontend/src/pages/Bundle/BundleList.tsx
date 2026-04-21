@@ -1,11 +1,33 @@
-import React, { useState, useEffect } from 'react';
-import { Table, Button, Input, Select, Space, Tag, Form, message, Row, Col, Tooltip } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { PlusOutlined, EditOutlined, StopOutlined, CheckCircleOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Table, Button, Input, Select, Space, Tag, Form, message, Row, Col, Tooltip, Empty, Result } from 'antd';
+import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import { PlusOutlined, EditOutlined, StopOutlined, CheckCircleOutlined, ExportOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import PageDoc from '../../components/PageDoc';
+import SearchFormLayout from '../../components/SearchFormLayout';
 import { useExport } from '../../utils/exportUtils';
 import request from '../../utils/request';
+
+interface BundleResponseDTO {
+    id: number;
+    name: string;
+    status: string;
+    bundleItems?: {
+        id: number;
+        childProductId: number;
+        quantity: number;
+        childProduct?: {
+            name?: string;
+            skus?: {
+                skuCode: string;
+                name?: string;
+                costPrice?: number;
+                supplier?: { name: string };
+            }[];
+            costPrice?: number;
+        };
+    }[];
+}
 
 interface BundleDataType {
   key: string;
@@ -22,58 +44,79 @@ interface BundleDataType {
       totalCost: number;
       supplier: string;
   }[];
+  [key: string]: any;
 }
 
 const BundleList: React.FC = () => {
   const navigate = useNavigate();
   const [data, setData] = useState<BundleDataType[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [form] = Form.useForm();
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
     total: 0,
   });
+  const paginationRef = useRef(pagination);
 
-  const fetchBundles = async (params: any = {}) => {
+  useEffect(() => {
+    paginationRef.current = pagination;
+  }, [pagination]);
+
+  const fetchBundles = useCallback(async (params: Record<string, unknown> = {}) => {
     setLoading(true);
+    setError(null);
     try {
-        const { current, pageSize } = pagination;
-        // Merge pagination and search params
-        const queryParams = {
-            page: params.page || current - 1, // Spring Boot is 0-indexed
-            size: params.size || pageSize,
-            ...params
-        };
-        
-        // Remove page/size from params if they are passed separately to avoid duplication or conflict
-        delete queryParams.current;
-        delete queryParams.pageSize;
+      const { current, pageSize } = paginationRef.current;
+      // Merge pagination and search params
+      const queryParams = {
+        page: typeof params.page === 'number' ? params.page : current - 1, // Spring Boot is 0-indexed
+        size: params.size || pageSize,
+        ...params
+      };
+      
+      // Remove page/size from params if they are passed separately to avoid duplication or conflict
+      if ('current' in queryParams) delete queryParams.current;
+      if ('pageSize' in queryParams) delete queryParams.pageSize;
 
-        const res: any = await request.get('/bundles', {
-            params: queryParams
-        });
-        
-        if (res && res.content) {
-            const bundles = res.content.map((p: any) => ({
-                key: p.id.toString(),
-                bundleId: p.id.toString(),
-                bundleName: p.name,
-                saleType: '打包售卖',
-                defaultCost: p.bundleItems ? p.bundleItems.reduce((sum: number, item: any) => {
-                     const child = item.childProduct || {};
-                     // Try to get cost from first SKU, or child product cost if available
-                     const cost = (child.skus && child.skus.length > 0) 
-                        ? child.skus[0].costPrice 
-                        : (child.costPrice || 0);
-                     return sum + (cost * item.quantity);
-                }, 0) : 0,
-                status: p.status,
-                subProducts: p.bundleItems ? p.bundleItems.map((item: any) => {
-                    const child = item.childProduct || {};
-                    const firstSku = child.skus && child.skus.length > 0 ? child.skus[0] : {};
-                    return {
-                        name: child.name || '未知商品',
+      const res = await request.get('/bundles', {
+        params: queryParams
+      }) as unknown as { 
+          content?: BundleResponseDTO[]; 
+          records?: BundleResponseDTO[];
+          totalElements?: number; 
+          total?: number;
+          number?: number;
+          data?: { content?: BundleResponseDTO[]; records?: BundleResponseDTO[]; totalElements?: number; total?: number; number?: number; };
+      };
+      
+      const content = Array.isArray(res?.content) ? res.content
+        : Array.isArray(res?.records) ? res.records
+        : Array.isArray(res?.data?.content) ? res.data?.content || []
+        : Array.isArray(res?.data?.records) ? res.data?.records || []
+        : [];
+
+      if (content.length > 0 || Array.isArray(res?.content) || Array.isArray(res?.records) || Array.isArray(res?.data?.content) || Array.isArray(res?.data?.records)) {
+        const bundles = content.map((p: BundleResponseDTO) => ({
+          key: p.id.toString(),
+          bundleId: p.id.toString(),
+          bundleName: p.name,
+          saleType: '打包售卖',
+          defaultCost: p.bundleItems ? p.bundleItems.reduce((sum: number, item: any) => {
+             const child = item.childProduct || {};
+             // Try to get cost from first SKU, or child product cost if available
+             const cost = (child.skus && child.skus.length > 0) 
+              ? (child.skus[0].costPrice || 0)
+              : (child.costPrice || 0);
+             return sum + (cost * item.quantity);
+          }, 0) : 0,
+          status: p.status,
+          subProducts: p.bundleItems ? p.bundleItems.map((item: any) => {
+            const child = item.childProduct || {};
+            const firstSku = child.skus && child.skus.length > 0 ? child.skus[0] : { skuCode: '', name: '', costPrice: 0, supplier: { name: '' } };
+            return {
+              name: child.name || '未知商品',
                         spec: firstSku.name || firstSku.skuCode || '默认规格',
                         qty: item.quantity,
                         unitCost: firstSku.costPrice || 0,
@@ -82,29 +125,43 @@ const BundleList: React.FC = () => {
                     };
                 }) : []
             }));
-            setData(bundles);
-            setPagination(prev => ({
-                ...prev,
-                total: res.totalElements,
-                current: res.number + 1
-            }));
-        }
+        const total = res?.totalElements ?? res?.total ?? res?.data?.totalElements ?? res?.data?.total ?? 0;
+        const number = res?.number ?? res?.data?.number ?? (typeof queryParams.page === 'number' ? queryParams.page : 0);
+        const nextPageSize = typeof queryParams.size === 'number' ? queryParams.size : pageSize;
+        setData(bundles);
+        setPagination(prev => ({
+          ...prev,
+          total: total,
+          current: number + 1,
+          pageSize: nextPageSize
+        }));
+      } else {
+        setData([]);
+        setPagination(prev => ({
+          ...prev,
+          total: 0
+        }));
+        setError('返回数据格式异常');
+      }
     } catch (e) {
+        const status = (e as { response?: { status?: number } })?.response?.status;
+        const errorMessage = status === 429 ? '请求过于频繁，请稍后重试' : '获取组合商品列表失败';
         console.error('Fetch bundles failed', e);
-        message.error('获取组合商品列表失败');
+        message.error(errorMessage);
+        setError(errorMessage);
     } finally {
         setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchBundles();
-  }, []);
+    fetchBundles({ page: 0, size: paginationRef.current.pageSize });
+  }, [fetchBundles]);
 
   const handleSearch = () => {
       const values = form.getFieldsValue();
       // Handle array for status
-      const searchParams: any = {
+      const searchParams: Record<string, unknown> = {
           keyword: values.keyword,
           page: 0 // Reset to first page
       };
@@ -127,16 +184,18 @@ const BundleList: React.FC = () => {
   const handleReset = () => {
       form.resetFields();
       setPagination(prev => ({ ...prev, current: 1 }));
-      fetchBundles({ page: 0 });
+      fetchBundles({ page: 0, size: paginationRef.current.pageSize });
   };
 
-  const handleTableChange = (newPagination: any) => {
-      setPagination(newPagination);
+  const handleTableChange = (newPagination: TablePaginationConfig) => {
       const values = form.getFieldsValue();
-      const searchParams: any = {
+      const current = newPagination.current || 1;
+      const size = newPagination.pageSize || paginationRef.current.pageSize;
+      setPagination(prev => ({ ...prev, current, pageSize: size }));
+      const searchParams: Record<string, unknown> = {
           keyword: values.keyword,
-          page: newPagination.current - 1,
-          size: newPagination.pageSize
+          page: current - 1,
+          size: size
       };
       if (values.status && values.status.length > 0) {
           searchParams.status = values.status[0];
@@ -154,7 +213,7 @@ const BundleList: React.FC = () => {
             message.success('组合商品已下架');
         }
         fetchBundles({ page: pagination.current - 1 }); 
-    } catch (e: any) {
+    } catch {
         // Error handled usually by interceptor, but if we want specific message:
         // message.error(e.message || '操作失败');
     }
@@ -169,8 +228,8 @@ const BundleList: React.FC = () => {
         { title: '售卖方式', dataIndex: 'saleType' },
         { title: '默认成本价', dataIndex: 'defaultCost', render: (val) => val.toFixed(2) },
         { title: '状态', dataIndex: 'status', render: (val) => {
-            const map: any = { 'PENDING_SELECTION': '待选品', 'SELECTED': '已选品', 'LISTED': '已上架', 'DELISTED': '已下架' };
-            return map[val] || val;
+            const map: Record<string, string> = { 'PENDING_SELECTION': '待选品', 'SELECTED': '已选品', 'LISTED': '已上架', 'DELISTED': '已下架' };
+            return map[val as string] || val;
         } },
     ]
   });
@@ -256,29 +315,17 @@ const BundleList: React.FC = () => {
         description="组合商品管理页面。支持组合商品的上架和下架。"
         fields={[]}
       />
-      <Form form={form} layout="inline" style={{ marginBottom: 24 }} onFinish={handleSearch}>
-         <Row gutter={[16, 16]} style={{ width: '100%' }}>
-            <Col>
-              <Form.Item name="keyword" label="商品信息">
-                 <Input placeholder="名称/ID" allowClear />
-              </Form.Item>
-            </Col>
-            <Col>
-              <Form.Item name="status" label="状态">
-                 <Select placeholder="请选择" mode="multiple" style={{ width: 200 }} allowClear>
-                    <Select.Option value="LISTED">已上架</Select.Option>
-                    <Select.Option value="DELISTED">已下架</Select.Option>
-                 </Select>
-              </Form.Item>
-            </Col>
-            <Col>
-               <Space>
-                  <Button type="primary" htmlType="submit">查询</Button>
-                  <Button onClick={handleReset}>重置</Button>
-               </Space>
-            </Col>
-         </Row>
-      </Form>
+      <SearchFormLayout onFinish={handleSearch} onReset={handleReset} form={form}>
+         <Form.Item name="keyword" label="商品信息" style={{ marginBottom: 0 }}>
+            <Input placeholder="名称/ID" allowClear />
+         </Form.Item>
+         <Form.Item name="status" label="状态" style={{ marginBottom: 0 }}>
+            <Select placeholder="请选择" mode="multiple" allowClear>
+               <Select.Option value="LISTED">已上架</Select.Option>
+               <Select.Option value="DELISTED">已下架</Select.Option>
+            </Select>
+         </Form.Item>
+      </SearchFormLayout>
 
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
          <Space>
@@ -293,14 +340,28 @@ const BundleList: React.FC = () => {
          </Space>
       </div>
 
-      <Table 
-        columns={columns} 
-        dataSource={data} 
-        loading={loading}
-        pagination={pagination}
-        onChange={handleTableChange}
-        rowKey="key"
-      />
+      {error ? (
+        <Result
+          status="error"
+          title="加载失败"
+          subTitle={error}
+          extra={
+            <Button type="primary" onClick={() => fetchBundles({ page: pagination.current - 1, size: pagination.pageSize })}>
+              重试
+            </Button>
+          }
+        />
+      ) : (
+        <Table 
+          columns={columns} 
+          dataSource={data} 
+          loading={loading}
+          pagination={pagination}
+          onChange={handleTableChange}
+          rowKey="key"
+          locale={{ emptyText: <Empty description="暂无组合商品" /> }}
+        />
+      )}
     </div>
   );
 };

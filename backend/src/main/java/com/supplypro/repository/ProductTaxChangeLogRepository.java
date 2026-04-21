@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface ProductTaxChangeLogRepository extends JpaRepository<ProductTaxChangeLog, Long> {
     List<ProductTaxChangeLog> findByProductIdOrderByCreatedAtDesc(Long productId);
+    void deleteByProductId(Long productId);
 }

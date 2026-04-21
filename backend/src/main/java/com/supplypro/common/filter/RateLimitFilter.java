@@ -20,29 +20,42 @@ import java.time.Duration;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private final RateLimiter rateLimiter;
+    private RateLimiter rateLimiter;
 
-    public RateLimitFilter() {
-        // Limit to 100 requests per second
-        RateLimiterConfig config = RateLimiterConfig.custom()
-                .timeoutDuration(Duration.ofMillis(0)) // Fail immediately if limit reached
-                .limitRefreshPeriod(Duration.ofSeconds(1))
-                .limitForPeriod(100)
-                .build();
+    @org.springframework.beans.factory.annotation.Value("${supplypro.rate-limit.enabled:true}")
+    private boolean enabled;
 
-        RateLimiterRegistry registry = RateLimiterRegistry.of(config);
-        this.rateLimiter = registry.rateLimiter("globalRateLimiter");
+    @org.springframework.beans.factory.annotation.Value("${supplypro.rate-limit.requests-per-second:100}")
+    private int requestsPerSecond;
+
+    @javax.annotation.PostConstruct
+    public void init() {
+        if (enabled) {
+            RateLimiterConfig config = RateLimiterConfig.custom()
+                    .timeoutDuration(Duration.ofMillis(0)) // Fail immediately if limit reached
+                    .limitRefreshPeriod(Duration.ofSeconds(1))
+                    .limitForPeriod(requestsPerSecond)
+                    .build();
+
+            RateLimiterRegistry registry = RateLimiterRegistry.of(config);
+            this.rateLimiter = registry.rateLimiter("globalRateLimiter");
+        }
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         
+        if (!enabled || rateLimiter == null) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         if (rateLimiter.acquirePermission()) {
             filterChain.doFilter(request, response);
         } else {
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            response.getWriter().write("Too many requests - Rate limit exceeded (100/sec)");
+            response.getWriter().write("Too many requests - Rate limit exceeded (" + requestsPerSecond + "/sec)");
         }
     }
 }

@@ -1,0 +1,1 @@
+{"code":200,"message":"Success","data":{"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsImlhdCI6MTc3MDYxNTA4NCwiZXhwIjoxNzcwNzAxNDg0fQ.tpf-_eyik5GBBHXzETJhrNQgQ4aVeB4CrgplJba6iGo","type":"Bearer","id":1,"username":"admin","email":"admin@supplypro.com","roles":["ROLE_ADMIN"]}}

@@ -4,52 +4,28 @@ import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, EditOutlined, StopOutlined, CheckCircleOutlined, ExportOutlined, ImportOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import PageDoc from '../../components/PageDoc';
+import SearchFormLayout from '../../components/SearchFormLayout';
 import { useExport } from '../../utils/exportUtils';
 import request from '../../utils/request';
+import { useSearchHistory } from '../../utils/hooks/useSearchHistory';
 
 interface ProductDataType {
   key: string;
   productId: string;
   productName: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   skus: any[]; // Changed from individual spec fields to skus array
   status: 'PENDING_SELECTION' | 'SELECTED' | 'ON_SHELF' | 'OFF_SHELF';
   brand: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  costPrice?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  taxClass?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  taxRate?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
 }
-
-const mockProducts: ProductDataType[] = [
-  {
-    key: '1',
-    productId: 'PROD001',
-    productName: '晨光A4打印纸',
-    skus: [{ skuCode: 'SPEC001', name: '70g/500张/包', costPrice: 20.00 }],
-    status: 'ON_SHELF',
-    brand: '晨光',
-  },
-  {
-    key: '2',
-    productId: 'PROD002',
-    productName: '得力黑色中性笔',
-    skus: [{ skuCode: 'SPEC002', name: '0.5mm/12支/盒', costPrice: 12.50 }],
-    status: 'PENDING_SELECTION',
-    brand: '得力',
-  },
-  {
-    key: '3',
-    productId: 'PROD003',
-    productName: '惠普激光打印机',
-    skus: [{ skuCode: 'SPEC003', name: 'M126a/台', costPrice: 1500.00 }],
-    status: 'SELECTED',
-    brand: '惠普',
-  },
-  {
-    key: '4',
-    productId: 'PROD004',
-    productName: '佳能喷墨打印机',
-    skus: [{ skuCode: 'SPEC004', name: 'G3800/台', costPrice: 800.00 }],
-    status: 'OFF_SHELF',
-    brand: '佳能',
-  },
-];
 
 const ProductPoolList: React.FC = () => {
   const navigate = useNavigate();
@@ -64,7 +40,9 @@ const ProductPoolList: React.FC = () => {
   const [form] = Form.useForm();
   
   // Category & Tax Options
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [categoryOptions, setCategoryOptions] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [taxOptions, setTaxOptions] = useState<any[]>([]);
 
   // Error Modal State
@@ -80,6 +58,7 @@ const ProductPoolList: React.FC = () => {
 
   const fetchTaxCategories = async () => {
       try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const res: any = await request.get('/tax-categories');
           if (Array.isArray(res)) setTaxOptions(res);
       } catch (e) {
@@ -89,8 +68,10 @@ const ProductPoolList: React.FC = () => {
 
   const fetchCategoryOptions = async (parentId: string) => {
       try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const res: any = await request.get('/product-categories', { params: { parentId } });
           const list = Array.isArray(res) ? res : [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const options = list.map((c: any) => ({
               value: c.categoryId,
               label: c.name,
@@ -106,6 +87,7 @@ const ProductPoolList: React.FC = () => {
       }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const loadCategoryData = async (selectedOptions: any[]) => {
       const targetOption = selectedOptions[selectedOptions.length - 1];
       targetOption.loading = true;
@@ -115,9 +97,11 @@ const ProductPoolList: React.FC = () => {
       setCategoryOptions([...categoryOptions]);
   };
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fetchProducts = async (params: any = {}) => {
       setLoading(true);
       try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const res: any = await request.get('/products', { 
               params: { 
                   page: params.page !== undefined ? params.page - 1 : currentPage - 1,
@@ -148,6 +132,7 @@ const ProductPoolList: React.FC = () => {
           });
           // Adapt backend response to table data
           // Interceptor unwraps response.data.data, so res IS the data object containing records
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const list = (res.records || []).map((item: any) => ({
               key: item.id,
               productId: item.skuCode || `P${item.id}`,
@@ -170,51 +155,26 @@ const ProductPoolList: React.FC = () => {
 
   useEffect(() => {
       fetchProducts();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Search History State
-  const [searchHistory, setSearchHistory] = useState<any[]>([]);
+  const { history: searchHistory, saveHistory, clearHistory, removeHistoryItem } = useSearchHistory({
+    storageKey: 'productSearchHistory',
+    maxHistory: 10
+  });
 
-  // Load History
-  useEffect(() => {
-      const history = localStorage.getItem('productSearchHistory');
-      if (history) {
-          try {
-              setSearchHistory(JSON.parse(history));
-          } catch (e) {
-              console.error('Failed to parse search history', e);
-          }
-      }
-  }, []);
-
-  const saveSearchHistory = (values: any) => {
-      // Filter out empty values
-      const validValues = Object.fromEntries(
-          Object.entries(values).filter(([_, v]) => v !== undefined && v !== null && v !== '' && (Array.isArray(v) ? v.length > 0 : true))
-      );
-      
-      if (Object.keys(validValues).length === 0) return;
-
-      const newHistory = [validValues, ...searchHistory.filter(h => JSON.stringify(h) !== JSON.stringify(validValues))].slice(0, 10);
-      setSearchHistory(newHistory);
-      localStorage.setItem('productSearchHistory', JSON.stringify(newHistory));
-  };
-
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSearch = (values: any) => {
-    saveSearchHistory(values);
+    saveHistory(values);
     const categoryCode = values.category ? values.category[values.category.length - 1] : undefined;
     fetchProducts({ ...values, categoryCode, page: 1 });
     setCurrentPage(1);
   };
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleHistoryClick = (historyItem: any) => {
       form.setFieldsValue(historyItem);
       handleSearch(historyItem);
-  };
-
-  const clearHistory = () => {
-      setSearchHistory([]);
-      localStorage.removeItem('productSearchHistory');
   };
   
   const handleReset = () => {
@@ -223,6 +183,7 @@ const ProductPoolList: React.FC = () => {
       setCurrentPage(1);
   };
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleTableChange = (pagination: any) => {
       setCurrentPage(pagination.current);
       setPageSize(pagination.pageSize);
@@ -263,6 +224,7 @@ const ProductPoolList: React.FC = () => {
             });
             
             // Create blob link to download
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const url = window.URL.createObjectURL(new Blob([response as any]));
             const link = document.createElement('a');
             link.href = url;
@@ -364,6 +326,7 @@ const ProductPoolList: React.FC = () => {
       await request.patch(`/products/${key}/status`, null, { params: { status: newStatus } });
       message.success(`商品 ${key} ${msg}`);
       fetchProducts(); // Refresh list to get updated data from backend
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Update status failed', error);
       
@@ -407,6 +370,7 @@ const ProductPoolList: React.FC = () => {
     formData.append('file', file);
     setLoading(true);
     try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const res: any = await request.post('/products/import/cost-price', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
@@ -448,10 +412,12 @@ const ProductPoolList: React.FC = () => {
       dataIndex: 'skus', 
       key: 'skus',
       width: 150,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       render: (skus: any[]) => {
         if (!skus || skus.length === 0) return '-';
         const content = (
           <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {skus.map((sku: any) => (
               <div key={sku.skuCode}>
                 {sku.skuCode}: {sku.name}
@@ -476,11 +442,13 @@ const ProductPoolList: React.FC = () => {
         dataIndex: 'costPrice', 
         key: 'costPrice',
         width: 150,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         render: (_: any, record: ProductDataType) => {
             const skus = record.skus || [];
             if (skus.length === 0) return '¥0.00';
             
             const prices = skus
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 .map((s: any) => Number(s.costPrice))
                 .filter(p => !isNaN(p));
                 
@@ -494,6 +462,7 @@ const ProductPoolList: React.FC = () => {
     },
     { title: '品牌', dataIndex: 'brand', key: 'brand', width: 120 },
     { title: '税务分类', dataIndex: 'taxClass', key: 'taxClass', width: 120 },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { title: '税率', dataIndex: 'taxRate', key: 'taxRate', width: 80, render: (val: any) => val ? `${(Number(val) * 100).toFixed(0)}%` : '-' },
     // { title: '默认供应商', dataIndex: 'defaultSupplier', key: 'defaultSupplier' },
     {
@@ -610,67 +579,47 @@ const ProductPoolList: React.FC = () => {
           <p>请点击“去编辑”按钮补充缺失的必填信息（如商品名称、商品分类、规格等），保存后再尝试提交选品。</p>
       </Modal>
 
-      <Form form={form} layout="inline" style={{ marginBottom: 24 }} onFinish={handleSearch}>
-         <Row gutter={[16, 16]}>
-            <Col>
-              <Form.Item name="keyword" label="商品信息">
-                 <Input placeholder="商品名称/ID/规格ID" style={{ width: 200 }} />
-              </Form.Item>
-            </Col>
-            <Col>
-              <Form.Item name="category" label="商品分类">
-                  <Cascader 
-                      options={categoryOptions} 
-                      loadData={loadCategoryData} 
-                      changeOnSelect 
-                      placeholder="请选择分类" 
-                      style={{ width: 200 }}
-                  />
-              </Form.Item>
-            </Col>
-            <Col>
-              <Form.Item name="taxClass" label="税务分类">
-                  <Select placeholder="请选择" allowClear showSearch style={{ width: 150 }}>
-                      {taxOptions.map((t: any) => <Select.Option key={t.id} value={t.name}>{t.name}</Select.Option>)}
-                  </Select>
-              </Form.Item>
-            </Col>
-            <Col>
-              <Form.Item name="status" label="状态">
-                 <Select mode="multiple" placeholder="请选择" style={{ minWidth: 160 }} allowClear maxTagCount="responsive">
-                    <Select.Option value="PENDING_SELECTION">待选品</Select.Option>
-                    <Select.Option value="SELECTED">已选品</Select.Option>
-                    <Select.Option value="ON_SHELF">已上架</Select.Option>
-                    <Select.Option value="OFF_SHELF">已下架</Select.Option>
-                 </Select>
-              </Form.Item>
-            </Col>
-            <Col>
-              <Form.Item name="dateRange" label="创建时间">
-                 <DatePicker.RangePicker showTime style={{ width: 220 }} />
-              </Form.Item>
-            </Col>
-            <Col>
-              <Form.Item label="成本价">
-                 <Space>
-                   <Form.Item name="minPrice" noStyle>
-                     <InputNumber placeholder="Min" style={{ width: 80 }} min={0} />
-                   </Form.Item>
-                   -
-                   <Form.Item name="maxPrice" noStyle>
-                     <InputNumber placeholder="Max" style={{ width: 80 }} min={0} />
-                   </Form.Item>
-                 </Space>
-              </Form.Item>
-            </Col>
-            <Col>
-               <Space>
-                  <Button type="primary" htmlType="submit">查询</Button>
-                  <Button onClick={handleReset}>重置</Button>
-               </Space>
-            </Col>
-         </Row>
-      </Form>
+      <SearchFormLayout onFinish={handleSearch} onReset={handleReset} form={form}>
+          <Form.Item name="keyword" label="商品信息" style={{ marginBottom: 0 }}>
+             <Input placeholder="商品名称/ID/规格ID" />
+          </Form.Item>
+          <Form.Item name="category" label="商品分类" style={{ marginBottom: 0 }}>
+              <Cascader 
+                  options={categoryOptions} 
+                  loadData={loadCategoryData} 
+                  changeOnSelect 
+                  placeholder="请选择分类" 
+              />
+          </Form.Item>
+          <Form.Item name="taxClass" label="税务分类" style={{ marginBottom: 0 }}>
+              <Select placeholder="请选择" allowClear showSearch>
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {taxOptions.map((t: any) => <Select.Option key={t.id} value={t.name}>{t.name}</Select.Option>)}
+              </Select>
+          </Form.Item>
+          <Form.Item name="status" label="状态" style={{ marginBottom: 0 }}>
+             <Select mode="multiple" placeholder="请选择" allowClear maxTagCount="responsive">
+                <Select.Option value="PENDING_SELECTION">待选品</Select.Option>
+                <Select.Option value="SELECTED">已选品</Select.Option>
+                <Select.Option value="ON_SHELF">已上架</Select.Option>
+                <Select.Option value="OFF_SHELF">已下架</Select.Option>
+             </Select>
+          </Form.Item>
+          <Form.Item name="dateRange" label="创建时间" style={{ marginBottom: 0 }}>
+             <DatePicker.RangePicker showTime style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item label="成本价" style={{ marginBottom: 0 }}>
+             <Space>
+               <Form.Item name="minPrice" noStyle>
+                 <InputNumber placeholder="Min" style={{ width: 80 }} min={0} />
+               </Form.Item>
+               -
+               <Form.Item name="maxPrice" noStyle>
+                 <InputNumber placeholder="Max" style={{ width: 80 }} min={0} />
+               </Form.Item>
+             </Space>
+          </Form.Item>
+      </SearchFormLayout>
 
       {searchHistory.length > 0 && (
           <div style={{ marginBottom: 16 }}>
@@ -682,9 +631,7 @@ const ProductPoolList: React.FC = () => {
                           closable 
                           onClose={(e) => {
                               e.preventDefault();
-                              const newH = searchHistory.filter((_, i) => i !== idx);
-                              setSearchHistory(newH);
-                              localStorage.setItem('productSearchHistory', JSON.stringify(newH));
+                              removeHistoryItem(idx);
                           }}
                           style={{ cursor: 'pointer' }}
                           onClick={() => handleHistoryClick(h)}

@@ -8,5 +8,6 @@ import java.util.List;
 
 @Repository
 public interface LogisticsProviderAccountRepository extends JpaRepository<LogisticsProviderAccount, Long> {
-    List<LogisticsProviderAccount> findByLogisticsProviderId(Long providerId);
+    List<LogisticsProviderAccount> findByLogisticsProviderId(Long logisticsProviderId);
+    List<LogisticsProviderAccount> findByLogisticsProvider(com.supplypro.entity.LogisticsProvider logisticsProvider);
 }

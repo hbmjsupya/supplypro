@@ -18,4 +18,10 @@ public interface LogisticsProviderRepository extends JpaRepository<LogisticsProv
     @Override
     @EntityGraph(attributePaths = {"purchaser"})
     Optional<LogisticsProvider> findById(Long id);
+
+    LogisticsProvider findByCode(String code);
+    
+    Optional<LogisticsProvider> findByName(String name);
+    
+    Optional<LogisticsProvider> findByShortName(String shortName);
 }

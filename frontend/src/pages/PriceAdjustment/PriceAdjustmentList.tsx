@@ -1,65 +1,122 @@
-import React from 'react';
-import { Table, Button, Input, Select, Space, Tag, Form, Row, Col, Tooltip } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Table, Button, Input, Select, Space, Tag, Form, Row, Col, Tooltip, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { EyeOutlined, ExportOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import PageDoc from '../../components/PageDoc';
+import SearchFormLayout from '../../components/SearchFormLayout';
 import { useExport } from '../../utils/exportUtils';
+import { listAdjustments, CostAdjustmentSheet } from '../../services/costAdjustmentService';
+
+const { Option } = Select;
 
 interface PriceAdjustType {
   key: string;
-  adjustNo: string;
+  id: number;
+  sheetNo: string;
   productCount: number;
   poCount: number;
+  supplierName: string;
   applicant: string;
-  status: 'Pending' | 'Approved' | 'Rejected' | 'Revoked';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'REVOKED';
   applyTime: string;
+  totalDiff: number;
+  [key: string]: unknown;
 }
-
-const mockData: PriceAdjustType[] = [
-  {
-    key: '1',
-    adjustNo: 'RC23102701',
-    productCount: 2,
-    poCount: 5,
-    applicant: '张三',
-    status: 'Pending',
-    applyTime: '2023-10-27 10:00:00',
-  },
-  {
-    key: '2',
-    adjustNo: 'RC23102602',
-    productCount: 1,
-    poCount: 1,
-    applicant: '李四',
-    status: 'Approved',
-    applyTime: '2023-10-26 15:30:00',
-  },
-];
 
 const PriceAdjustmentList: React.FC = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<PriceAdjustType[]>([]);
+  const [total, setTotal] = useState(0);
+  const [params, setParams] = useState<{ sheetNo?: string; status?: string; page: number; size: number }>({
+    page: 0,
+    size: 10
+  });
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const res = await listAdjustments({
+        sheetNo: params.sheetNo,
+        status: params.status,
+        page: params.page,
+        size: params.size
+      });
+      
+      const list = res.data || [];
+      setData(list.map((item: CostAdjustmentSheet) => ({
+        key: String(item.id),
+        id: item.id,
+        sheetNo: item.sheetNo,
+        productCount: item.totalQuantity || item.itemCount || 1,
+        poCount: 1,
+        supplierName: item.supplierName || '-',
+        applicant: item.createdBy || '-',
+        status: item.status,
+        applyTime: item.createdAt || '-',
+        totalDiff: item.totalDiff || 0
+      })));
+      setTotal(res.totalElements || 0);
+    } catch (error) {
+      console.error('获取调价单列表失败', error);
+      message.error('获取调价单列表失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [params]);
 
   const { handleExport, exporting, progress } = useExport<PriceAdjustType>({
     filenamePrefix: '采购调价单列表',
-    fetchData: () => mockData,
+    fetchData: async () => {
+      const res = await listAdjustments({ page: 0, size: 1000 });
+      const list = res.data || [];
+      return list.map((item: CostAdjustmentSheet) => ({
+        key: String(item.id),
+        id: item.id,
+        sheetNo: item.sheetNo,
+        productCount: item.totalQuantity || item.itemCount || 1,
+        poCount: 1,
+        supplierName: item.supplierName || '-',
+        applicant: item.createdBy || '-',
+        status: item.status,
+        applyTime: item.createdAt || '-',
+        totalDiff: item.totalDiff || 0
+      }));
+    },
     columns: [
-        { title: '调价单号', dataIndex: 'adjustNo' },
+        { title: '调价单号', dataIndex: 'sheetNo' },
         { title: '商品数量', dataIndex: 'productCount' },
         { title: '采购单数', dataIndex: 'poCount' },
+        { title: '商品供应商', dataIndex: 'supplierName' },
+        { title: '调价差额', dataIndex: 'totalDiff', render: (v: number) => `¥${(v || 0).toFixed(2)}` },
         { title: '申请人', dataIndex: 'applicant' },
         { title: '申请时间', dataIndex: 'applyTime' },
-        { title: '审批状态', dataIndex: 'status', render: (val) => {
-            const map: any = { 'Pending': '待审批', 'Approved': '已审批', 'Rejected': '已拒回', 'Revoked': '已撤销' };
+        { title: '审批状态', dataIndex: 'status', render: (val: string) => {
+            const map: Record<string, string> = { 'PENDING': '待审批', 'APPROVED': '已审批', 'REJECTED': '已驳回', 'REVOKED': '已撤销' };
             return map[val] || val;
         } },
     ]
   });
 
   const columns: ColumnsType<PriceAdjustType> = [
-    { title: '调价单号', dataIndex: 'adjustNo', key: 'adjustNo' },
+    { title: '调价单号', dataIndex: 'sheetNo', key: 'sheetNo' },
     { title: '商品数量', dataIndex: 'productCount', key: 'productCount' },
     { title: '采购单数', dataIndex: 'poCount', key: 'poCount' },
+    { title: '商品供应商', dataIndex: 'supplierName', key: 'supplierName' },
+    { 
+      title: '调价差额', 
+      dataIndex: 'totalDiff', 
+      key: 'totalDiff',
+      render: (v: number) => {
+        const color = (v || 0) >= 0 ? '#52c41a' : '#ff4d4f';
+        return <span style={{ color }}>{(v || 0) >= 0 ? '+' : ''}¥{(v || 0).toFixed(2)}</span>;
+      }
+    },
     { title: '申请人', dataIndex: 'applicant', key: 'applicant' },
     { title: '申请时间', dataIndex: 'applyTime', key: 'applyTime' },
     { 
@@ -67,20 +124,21 @@ const PriceAdjustmentList: React.FC = () => {
        dataIndex: 'status', 
        key: 'status',
        render: (status) => {
-          const map: Record<string, string> = {
-             Pending: '待审批',
-             Approved: '已审批',
-             Rejected: '已拒回',
-             Revoked: '已撤销'
+          const map: Record<string, { text: string; color: string }> = {
+             PENDING: { text: '待审批', color: 'blue' },
+             APPROVED: { text: '已审批', color: 'green' },
+             REJECTED: { text: '已驳回', color: 'red' },
+             REVOKED: { text: '已撤销', color: 'default' }
           };
-          return <Tag>{map[status] || status}</Tag>;
+          const info = map[status] || { text: status, color: 'default' };
+          return <Tag color={info.color}>{info.text}</Tag>;
        }
     },
     {
       title: '操作',
       key: 'action',
       render: (_, record) => (
-        <Button type="link" icon={<EyeOutlined />} onClick={() => navigate(`/supply-chain/price-adjustment/detail/${record.key}`)}>查看</Button>
+        <Button type="link" icon={<EyeOutlined />} onClick={() => navigate(`/supply-chain/price-adjustment/detail/${record.sheetNo}`)}>查看</Button>
       ),
     },
   ];
@@ -126,29 +184,23 @@ const PriceAdjustmentList: React.FC = () => {
     B -- 通过 --> C[更新采购单成本]
     B -- 拒回 --> D[流程结束]`}
       />
-      <Form layout="inline" style={{ marginBottom: 24 }}>
-         <Row gutter={[16, 16]}>
-            <Col>
-              <Form.Item label="调价单号">
-                 <Input placeholder="请输入" />
-              </Form.Item>
-            </Col>
-            <Col>
-              <Form.Item label="状态">
-                 <Select placeholder="请选择" style={{ width: 120 }}>
-                    <Select.Option value="Pending">待审批</Select.Option>
-                    <Select.Option value="Approved">已审批</Select.Option>
-                 </Select>
-              </Form.Item>
-            </Col>
-            <Col>
-               <Space>
-                  <Button type="primary">查询</Button>
-                  <Button>重置</Button>
-               </Space>
-            </Col>
-         </Row>
-      </Form>
+      <SearchFormLayout onFinish={(values: any) => {
+        setParams(prev => ({ ...prev, ...values, page: 0 }));
+      }} onReset={() => {
+        setParams({ page: 0, size: 10 });
+      }}>
+         <Form.Item label="调价单号" name="sheetNo" style={{ marginBottom: 0 }}>
+            <Input placeholder="请输入" />
+         </Form.Item>
+         <Form.Item label="状态" name="status" style={{ marginBottom: 0 }}>
+            <Select placeholder="请选择" allowClear>
+               <Option value="PENDING">待审批</Option>
+               <Option value="APPROVED">已审批</Option>
+               <Option value="REJECTED">已驳回</Option>
+               <Option value="REVOKED">已撤销</Option>
+            </Select>
+         </Form.Item>
+      </SearchFormLayout>
 
       <div style={{ marginBottom: 16, textAlign: 'right' }}>
          <Tooltip title="支持Excel/CSV格式导出，最大支持10000条数据">
@@ -158,7 +210,19 @@ const PriceAdjustmentList: React.FC = () => {
          </Tooltip>
       </div>
 
-      <Table columns={columns} dataSource={mockData} />
+      <Table 
+        columns={columns} 
+        dataSource={data} 
+        loading={loading}
+        pagination={{
+          current: params.page + 1,
+          pageSize: params.size,
+          total: total,
+          onChange: (page, size) => {
+            setParams(prev => ({ ...prev, page: page - 1, size }));
+          }
+        }}
+      />
     </div>
   );
 };

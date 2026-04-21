@@ -1,0 +1,8 @@
+ALTER TABLE purchase_orders ADD COLUMN contact_name VARCHAR(100) DEFAULT NULL COMMENT '联系人';
+ALTER TABLE purchase_orders ADD COLUMN contact_phone VARCHAR(20) DEFAULT NULL COMMENT '联系电话';
+ALTER TABLE purchase_orders ADD COLUMN province VARCHAR(50) DEFAULT NULL COMMENT '省';
+ALTER TABLE purchase_orders ADD COLUMN city VARCHAR(50) DEFAULT NULL COMMENT '市';
+ALTER TABLE purchase_orders ADD COLUMN district VARCHAR(50) DEFAULT NULL COMMENT '区';
+ALTER TABLE purchase_orders ADD COLUMN detail_address VARCHAR(255) DEFAULT NULL COMMENT '详细地址';
+ALTER TABLE purchase_orders ADD COLUMN is_manual_address BOOLEAN DEFAULT FALSE COMMENT '是否手动填写地址';
+ALTER TABLE purchase_orders ADD COLUMN attachments TEXT DEFAULT NULL COMMENT '附件JSON列表';

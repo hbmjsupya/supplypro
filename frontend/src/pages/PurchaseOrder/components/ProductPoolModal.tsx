@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Table, Form, Input, Button, message, Space } from 'antd';
-import { productService, Product, Sku } from '../../../services/productService';
+import { Modal, Table, Form, Input, Button, message } from 'antd';
+import { productService, Product } from '../../../services/productService';
 import type { ColumnsType } from 'antd/es/table';
 
 interface ProductPoolModalProps {
@@ -31,14 +31,15 @@ const ProductPoolModal: React.FC<ProductPoolModalProps> = ({ open, onCancel, onO
   const [selectedRows, setSelectedRows] = useState<FlattenedSku[]>([]);
   const [form] = Form.useForm();
 
-  const fetchData = async () => {
+  const fetchData = React.useCallback(async () => {
     setLoading(true);
     try {
       const values = await form.validateFields();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const res: any = await productService.getAll({
         page: 0,
         size: 100, // Fetch more to flatten
-        name: values.keyword,
+        keyword: values.keyword,
         status: 'ON_SHELF' // Only show ON_SHELF products
       });
       
@@ -49,6 +50,10 @@ const ProductPoolModal: React.FC<ProductPoolModalProps> = ({ open, onCancel, onO
       products.forEach(p => {
         // Filter client side if API doesn't support status param yet or just to be safe
         if (p.status !== 'ON_SHELF') return;
+        if (p.id === null || p.id === undefined) {
+            console.warn('Product missing ID:', p);
+            return;
+        }
 
         if (p.skus && p.skus.length > 0) {
             p.skus.forEach(sku => {
@@ -60,10 +65,12 @@ const ProductPoolModal: React.FC<ProductPoolModalProps> = ({ open, onCancel, onO
                     skuCode: sku.skuCode,
                     specName: sku.name, // Assuming sku.name is the spec/variant name
                     costPrice: sku.costPrice,
-                    category: p.category,
-                    brand: p.brand,
-                    defaultSupplierName: p.defaultSupplierName,
-                    defaultSupplierId: p.defaultSupplierId
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    category: (p as any).categoryName || ((typeof p.category === 'object' && p.category) ? (p.category as any).name : p.category),
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    brand: (p as any).brandZhName || ((typeof p.brand === 'object' && p.brand) ? (p.brand as any).name : p.brand),
+                    defaultSupplierName: sku.supplier?.name || p.defaultSupplierName,
+                    defaultSupplierId: sku.supplier?.id || p.defaultSupplierId
                 });
             });
         }
@@ -76,7 +83,7 @@ const ProductPoolModal: React.FC<ProductPoolModalProps> = ({ open, onCancel, onO
     } finally {
       setLoading(false);
     }
-  };
+  }, [form]);
 
   useEffect(() => {
     if (open) {
@@ -84,15 +91,27 @@ const ProductPoolModal: React.FC<ProductPoolModalProps> = ({ open, onCancel, onO
       setSelectedRowKeys([]);
       setSelectedRows([]);
     }
-  }, [open]);
+  }, [open, fetchData]);
 
   const columns: ColumnsType<FlattenedSku> = [
     { title: '商品编码', dataIndex: 'skuCode' },
     { title: '商品名称', dataIndex: 'productName' },
     { title: '规格', dataIndex: 'specName' },
-    { title: '分类', dataIndex: 'category' },
-    { title: '品牌', dataIndex: 'brand' },
-    { title: '默认供应商', dataIndex: 'defaultSupplierName' },
+    { 
+      title: '分类', 
+      dataIndex: 'category',
+      render: (val) => val || '--'
+    },
+    { 
+      title: '品牌', 
+      dataIndex: 'brand',
+      render: (val) => val || '--'
+    },
+    { 
+      title: '默认供应商', 
+      dataIndex: 'defaultSupplierName',
+      render: (val) => val || '--'
+    },
     { title: '采购价', dataIndex: 'costPrice', render: (val) => val ? `¥${val}` : <span style={{color:'red'}}>未维护</span> },
   ];
 

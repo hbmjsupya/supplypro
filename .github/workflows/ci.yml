@@ -12,6 +12,52 @@ jobs:
     defaults:
       run:
         working-directory: ./backend
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: supplypro
+        ports:
+          - 3307:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      redis:
+        image: redis:7.0
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+        env:
+          discovery.type: single-node
+          ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+        ports:
+          - 9200:9200
+        options: >-
+          --health-cmd "curl http://localhost:9200/_cluster/health"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+      rabbitmq:
+        image: rabbitmq:3.11-management
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
     - uses: actions/checkout@v3
@@ -26,8 +72,30 @@ jobs:
     - name: Verify JDK Version
       run: java -version
 
-    - name: Build with Maven
-      run: mvn clean package -DskipTests --file pom.xml
+    - name: Run Tests with Coverage
+      run: mvn clean verify -B --file pom.xml
+
+    - name: Upload Coverage Report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: jacoco-coverage-report
+        path: backend/target/site/jacoco/
+        retention-days: 30
+
+    - name: Check Coverage Threshold
+      run: |
+        echo "Coverage check is handled by jacoco-maven-plugin during verification phase."
+        echo "If coverage < 80%, the build will fail."
+
+    - name: Notify Team (Example)
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          console.log("Test failed! Notification logic goes here (e.g. Slack/Email).");
+          // const slackUrl = process.env.SLACK_WEBHOOK_URL;
+          // await fetch(slackUrl, { method: 'POST', body: JSON.stringify({ text: 'Build failed!' }) });
 
   docker-build:
     runs-on: ubuntu-latest

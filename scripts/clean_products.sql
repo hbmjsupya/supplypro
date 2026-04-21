@@ -1,0 +1,17 @@
+SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE stock_flows;
+TRUNCATE TABLE stock_batches;
+TRUNCATE TABLE inbound_order_items;
+TRUNCATE TABLE inbound_orders;
+TRUNCATE TABLE outbound_orders;
+TRUNCATE TABLE purchase_order_logs;
+TRUNCATE TABLE purchase_order_items;
+TRUNCATE TABLE purchase_orders;
+TRUNCATE TABLE sales_order_items;
+TRUNCATE TABLE sales_orders;
+TRUNCATE TABLE product_bundles;
+TRUNCATE TABLE product_status_change_logs;
+TRUNCATE TABLE product_tax_change_logs;
+TRUNCATE TABLE skus;
+TRUNCATE TABLE products;
+SET FOREIGN_KEY_CHECKS = 1;

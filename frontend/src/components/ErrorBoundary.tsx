@@ -24,7 +24,14 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Uncaught error:', error, errorInfo);
+    // Structured logging for monitoring tools
+    console.error('[CRITICAL_FRONTEND_ERROR]', {
+      timestamp: new Date().toISOString(),
+      error: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+      url: window.location.href
+    });
   }
 
   public render() {

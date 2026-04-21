@@ -1,10 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Card, Space, Modal, Form, Input, Select, message, Breadcrumb, DatePicker, Row, Col } from 'antd';
+import { Table, Button, Card, Space, Modal, Form, Input, Select, Breadcrumb, DatePicker } from 'antd';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageDoc from '../../components/PageDoc';
+import SearchFormLayout from '../../components/SearchFormLayout';
 import { getWarehouses, getInventoryBatches, getWarehouseNameMap } from '../../services/warehouseService';
 import { Warehouse, InventoryBatch } from '../../types/warehouse';
 import type { ColumnsType } from 'antd/es/table';
+
+interface AggregatedProduct {
+    key: string;
+    warehouseCode: string;
+    warehouseName: string;
+    productName: string;
+    specName: string;
+    qty: number;
+    totalValue: number;
+    balanceCost: number;
+    skuId: string;
+    unitCost: number;
+}
 
 const WarehouseProductList: React.FC = () => {
   const navigate = useNavigate();
@@ -25,24 +39,37 @@ const WarehouseProductList: React.FC = () => {
 
   // Batch Modal States
   const [batchModalOpen, setBatchModalOpen] = useState(false);
-  const [currentBatchProduct, setCurrentBatchProduct] = useState<any | null>(null);
+  const [currentBatchProduct, setCurrentBatchProduct] = useState<AggregatedProduct | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [batchFilter, setBatchFilter] = useState<{ batchNo?: string, dateRange?: any }>({});
 
-  const loadData = async () => {
+  const loadData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [whs, batches, whMap] = await Promise.all([getWarehouses(), getInventoryBatches(), getWarehouseNameMap()]);
+      const apiFilters = {
+          warehouseCode: filters.warehouseCode,
+          productName: filters.productName
+      };
+      console.log('WarehouseProductList loadData called with filters:', apiFilters);
+      const [whs, batches, whMap] = await Promise.all([
+          getWarehouses(), 
+          getInventoryBatches(apiFilters), 
+          getWarehouseNameMap()
+      ]);
+      console.log('WarehouseProductList loaded data:', { whs: whs.length, batches: batches.length, whMap: Object.keys(whMap).length });
       setWarehouses(whs);
       setInventory(batches);
       setWarehouseMap(whMap);
+    } catch (e) {
+      console.error('Failed to load data:', e);
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters.warehouseCode, filters.productName]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   useEffect(() => {
       if (initialWarehouseCode) {
@@ -51,7 +78,7 @@ const WarehouseProductList: React.FC = () => {
   }, [initialWarehouseCode]);
 
   // Aggregate Inventory
-  const getAggregatedData = () => {
+  const getAggregatedData = React.useMemo(() => {
       const filteredBatches = inventory.filter(b => {
           if (filters.warehouseCode && b.warehouseCode !== filters.warehouseCode) return false;
           if (filters.productName && !b.productName.includes(filters.productName)) return false;
@@ -61,7 +88,8 @@ const WarehouseProductList: React.FC = () => {
 
       const goodsMap = new Map();
       filteredBatches.forEach(b => {
-          const key = `${b.warehouseCode}_${b.skuId}`;
+          const specKey = b.specName && b.specName !== '-' ? b.specName : 'default';
+          const key = `${b.warehouseCode}_${b.productId}_${specKey}_${b.skuId}`;
           if (!goodsMap.has(key)) {
               const whName = warehouseMap[b.warehouseCode] || b.warehouseCode;
               goodsMap.set(key, {
@@ -72,18 +100,19 @@ const WarehouseProductList: React.FC = () => {
                   specName: b.specName,
                   qty: 0,
                   totalValue: 0,
+                  balanceCost: b.balanceCost || 0,
                   skuId: b.skuId,
-                  unitCost: b.unitCost // approximate
+                  unitCost: b.unitCost
               });
           }
           const item = goodsMap.get(key);
           item.qty += b.currentQty;
-          item.totalValue += b.currentQty * b.unitCost;
+          item.totalValue = item.balanceCost;
       });
       return Array.from(goodsMap.values());
-  };
+  }, [inventory, filters, warehouseMap]);
 
-  const columns: ColumnsType<any> = [
+  const columns: ColumnsType<AggregatedProduct> = [
       { title: '仓库', dataIndex: 'warehouseName' },
       { title: '商品名称', dataIndex: 'productName' },
       { title: '规格名称', dataIndex: 'specName' },
@@ -94,9 +123,9 @@ const WarehouseProductList: React.FC = () => {
           render: (_, record) => (
             <Space>
               <Button type="link" onClick={() => {
-                  navigate(`/supply-chain/stock-flow?productName=${encodeURIComponent(record.productName)}&warehouseName=${encodeURIComponent(record.warehouseName)}`);
+                  navigate(`/supply-chain/stock-flow?productName=${encodeURIComponent(record.productName)}&warehouseName=${encodeURIComponent(record.warehouseName)}&specName=${encodeURIComponent(record.specName && record.specName !== '-' ? record.specName : '')}`);
               }}>
-                  出入库记录
+                  变动记录
               </Button>
               <Button type="link" onClick={() => {
                   setCurrentBatchProduct(record);
@@ -121,41 +150,36 @@ const WarehouseProductList: React.FC = () => {
             { title: '分仓商品列表' }
         ]} />
 
-        <Card variant="borderless">
-            <Form layout="inline" style={{ marginBottom: 16 }}>
-                <Form.Item label="仓库">
-                    <Select 
-                        style={{ width: 150 }} 
-                        allowClear
-                        placeholder="全部仓库"
-                        value={filters.warehouseCode}
-                        onChange={v => setFilters({...filters, warehouseCode: v})}
-                        options={warehouses.map(w => ({ label: w.name, value: w.code }))}
-                    />
-                </Form.Item>
-                <Form.Item label="商品名称">
-                    <Input 
-                        placeholder="请输入" 
-                        value={filters.productName}
-                        onChange={e => setFilters({...filters, productName: e.target.value})}
-                    />
-                </Form.Item>
-                <Form.Item label="规格">
-                    <Input 
-                        placeholder="请输入" 
-                        value={filters.specName}
-                        onChange={e => setFilters({...filters, specName: e.target.value})}
-                    />
-                </Form.Item>
-                <Form.Item>
-                    <Button type="primary" onClick={() => loadData()}>查询</Button>
-                    <Button style={{ marginLeft: 8 }} onClick={() => setFilters({ warehouseCode: undefined, productName: '', specName: '' })}>重置</Button>
-                </Form.Item>
-            </Form>
+        <SearchFormLayout onSearch={loadData} onReset={() => setFilters({ warehouseCode: undefined, productName: '', specName: '' })}>
+            <Form.Item label="仓库" style={{ marginBottom: 0 }}>
+                <Select 
+                    allowClear
+                    placeholder="全部仓库"
+                    value={filters.warehouseCode}
+                    onChange={v => setFilters({...filters, warehouseCode: v})}
+                    options={warehouses.map(w => ({ label: w.name, value: w.code }))}
+                />
+            </Form.Item>
+            <Form.Item label="商品名称" style={{ marginBottom: 0 }}>
+                <Input 
+                    placeholder="请输入" 
+                    value={filters.productName}
+                    onChange={e => setFilters({...filters, productName: e.target.value})}
+                />
+            </Form.Item>
+            <Form.Item label="规格" style={{ marginBottom: 0 }}>
+                <Input 
+                    placeholder="请输入" 
+                    value={filters.specName}
+                    onChange={e => setFilters({...filters, specName: e.target.value})}
+                />
+            </Form.Item>
+        </SearchFormLayout>
 
+        <Card variant="borderless">
             <Table 
                 columns={columns} 
-                dataSource={getAggregatedData()} 
+                dataSource={getAggregatedData} 
                 rowKey="key"
                 loading={loading}
             />
@@ -164,7 +188,7 @@ const WarehouseProductList: React.FC = () => {
         {/* Batch List Modal */}
         <Modal
             title={`库存批次 - ${currentBatchProduct?.productName} (${currentBatchProduct?.warehouseName})`}
-            width={800}
+            width={900}
             open={batchModalOpen}
             footer={null}
             onCancel={() => setBatchModalOpen(false)}
@@ -186,16 +210,38 @@ const WarehouseProductList: React.FC = () => {
                 dataSource={
                 inventory.filter(b => {
                     if (!currentBatchProduct) return false;
-                    if (b.skuId !== currentBatchProduct.skuId || b.warehouseCode !== currentBatchProduct.warehouseCode) return false;
+                    const specMatch = (b.specName === currentBatchProduct.specName) || (b.skuId === currentBatchProduct.skuId);
+                    if (!specMatch || b.warehouseCode !== currentBatchProduct.warehouseCode) return false;
                     if (batchFilter.batchNo && !b.batchNo.includes(batchFilter.batchNo)) return false;
                     return true;
                 })
                 }
                 columns={[
                 { title: '批次号', dataIndex: 'batchNo' },
+                { 
+                    title: '关联单号', 
+                    dataIndex: 'purchaseOrderNo',
+                    render: (text: string, record: InventoryBatch) => {
+                        if (!text) return '-';
+                        return (
+                            <a 
+                                onClick={() => {
+                                    if (record.purchaseOrderId) {
+                                        window.open(`/supply-chain/purchase-order/detail/${record.purchaseOrderId}`, '_blank');
+                                    }
+                                }}
+                                style={{ color: '#1890ff', cursor: 'pointer' }}
+                            >
+                                {text}
+                            </a>
+                        );
+                    }
+                },
                 { title: '入库时间', dataIndex: 'inboundTime', render: t => t.split('T')[0] },
                 { title: '有效期至', dataIndex: 'expiryDate' },
-                { title: '剩余库存', dataIndex: 'currentQty' },
+                { title: '结存数量', dataIndex: 'currentQty' },
+                { title: '冻结数量', dataIndex: 'lockedQty', render: v => v || 0 },
+                { title: '可用数量', dataIndex: 'availableForShip', render: v => v ?? '-' },
                 { title: '入库成本', dataIndex: 'unitCost', render: v => `¥${v.toFixed(2)}` },
                 ]}
             />

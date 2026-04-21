@@ -11,6 +11,11 @@ import java.util.List;
 public class LogisticsProviderDTO {
     private Long id;
     private String name;
+    private String shortName;
+    private String code;
+    private String website;
+    private String serviceScope;
+    private String businessType;
     private String contactPerson;
     private String contactPhone;
     private String status;

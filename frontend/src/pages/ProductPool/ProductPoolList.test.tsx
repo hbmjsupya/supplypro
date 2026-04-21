@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ProductPoolList from './ProductPoolList';
 import { BrowserRouter } from 'react-router-dom';
 import request from '../../utils/request';
@@ -65,7 +66,7 @@ describe('ProductPoolList', () => {
         vi.clearAllMocks();
         
         // Mock List Data and other endpoints
-        (request.get as any).mockImplementation((url: string) => {
+        (vi.mocked(request.get)).mockImplementation((url: string) => {
             if (url === '/products') {
                 return Promise.resolve({
                     records: [
@@ -109,7 +110,7 @@ describe('ProductPoolList', () => {
                 }
             }
         };
-        (request.patch as any).mockImplementation(() => Promise.reject(errorResponse));
+        (vi.mocked(request.patch)).mockImplementation(() => Promise.reject(errorResponse));
 
         // Click "确认选品" (Select)
         const selectBtn = screen.getByText('确认选品');
@@ -171,13 +172,13 @@ describe('ProductPoolList', () => {
         });
 
         // Clear previous calls to request.get (from mount)
-        (request.get as any).mockClear();
+        vi.mocked(request.get).mockClear();
         // Re-mock implementation because mockClear clears usage data but implementation persists? 
         // Actually mockClear clears call history. Implementation stays if configured on the mock function itself.
         // But let's be safe. The implementation is in beforeEach, so it should be fine.
 
         // Mock Success
-        (request.patch as any).mockResolvedValue({});
+        vi.mocked(request.patch).mockResolvedValue({});
 
         // Click Select
         const selectBtn = screen.getByText('确认选品');
@@ -195,7 +196,7 @@ describe('ProductPoolList', () => {
 
     it('Scenario 4: Should handle Export', async () => {
         // Mock Blob response
-        (request.get as any).mockImplementation((url: string) => {
+        (vi.mocked(request.get)).mockImplementation((url: string) => {
             if (url === '/products/export') {
                 return Promise.resolve(new Blob(['test'], { type: 'text/csv' }));
             }
@@ -257,8 +258,10 @@ describe('ProductPoolList', () => {
         });
 
         // Simulate OK
-        const confirmCall = (Modal.confirm as any).mock.calls[0][0];
-        await confirmCall.onOk();
+        const confirmCall = vi.mocked(Modal.confirm).mock.calls[0]?.[0];
+        if (confirmCall && confirmCall.onOk) {
+            await confirmCall.onOk();
+        }
 
         await waitFor(() => {
             expect(request.post).toHaveBeenCalledWith('/products/batch/delete', ['1']);
@@ -296,15 +299,18 @@ describe('ProductPoolList', () => {
         });
         
         // Simulate OK
-        const confirmCall = (Modal.confirm as any).mock.calls[0][0];
-        await confirmCall.onOk();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const confirmCall = (Modal.confirm as any).mock.calls[0]?.[0];
+        if (confirmCall && confirmCall.onOk) {
+            await confirmCall.onOk();
+        }
 
         await waitFor(() => {
             expect(request.post).toHaveBeenCalledWith('/products/batch/status', { ids: ['1'], status: 'ON_SHELF' });
         });
 
         // Clear mocks to reset call history
-        (Modal.confirm as any).mockClear();
+        vi.mocked(Modal.confirm).mockClear();
 
         // Re-select Row because previous action cleared selection
         await waitFor(() => {
@@ -331,8 +337,10 @@ describe('ProductPoolList', () => {
         });
         
         // Simulate OK
-        const confirmCall2 = (Modal.confirm as any).mock.calls[0][0];
-        await confirmCall2.onOk();
+        const confirmCall2 = vi.mocked(Modal.confirm).mock.calls[0]?.[0];
+        if (confirmCall2 && confirmCall2.onOk) {
+            await confirmCall2.onOk();
+        }
 
         await waitFor(() => {
             expect(request.post).toHaveBeenCalledWith('/products/batch/status', { ids: ['1'], status: 'OFF_SHELF' });
@@ -341,7 +349,7 @@ describe('ProductPoolList', () => {
 
     it('Scenario 7: Should render correct actions and handle status transitions', async () => {
         // Mock data with different statuses
-        (request.get as any).mockImplementation((url: string) => {
+        (vi.mocked(request.get)).mockImplementation((url: string) => {
             if (url === '/products') {
                 return Promise.resolve({
                     records: [
@@ -389,7 +397,7 @@ describe('ProductPoolList', () => {
     });
 
     it('Scenario 8: Should handle Import Cost Price', async () => {
-        const { container } = render(
+        render(
             <BrowserRouter>
                 <ProductPoolList />
             </BrowserRouter>
@@ -414,7 +422,7 @@ describe('ProductPoolList', () => {
         
         if (fileInput) {
             // Mock request.post for import
-            (request.post as any).mockImplementation(() => Promise.resolve({ code: 200, message: '导入成功', errors: [] }));
+            (vi.mocked(request.post)).mockImplementation(() => Promise.resolve({ code: 200, message: '导入成功', errors: [] }));
             
             fireEvent.change(fileInput, { target: { files: [file] } });
             
@@ -442,8 +450,8 @@ describe('ProductPoolList', () => {
                 }
             }
         };
-        (request.patch as any).mockReset();
-        (request.patch as any).mockRejectedValue(errorResponse);
+        vi.mocked(request.patch).mockReset();
+        vi.mocked(request.patch).mockRejectedValue(errorResponse);
         
         const selectBtn = screen.getByText('确认选品');
         fireEvent.click(selectBtn);
@@ -462,13 +470,16 @@ describe('ProductPoolList', () => {
         });
         
         // Simulate clicking OK on the modal
-        const confirmCall = (Modal.confirm as any).mock.calls[0][0];
-        confirmCall.onOk();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const confirmCall = (Modal.confirm as any).mock.calls[0]?.[0];
+        if (confirmCall && confirmCall.onOk) {
+            confirmCall.onOk();
+        }
         expect(mockNavigate).toHaveBeenCalledWith('/supply-chain/product-pool/edit/1');
     });
 
     it('Scenario 10: Should handle ReShelf action', async () => {
-        (request.get as any).mockImplementation((url: string) => {
+        (vi.mocked(request.get)).mockImplementation((url: string) => {
             if (url === '/products') {
                 return Promise.resolve({
                     records: [
@@ -499,7 +510,7 @@ describe('ProductPoolList', () => {
     });
 
     it('Scenario 11: Should render Cost Price range correctly', async () => {
-        (request.get as any).mockImplementation((url: string) => {
+        (vi.mocked(request.get)).mockImplementation((url: string) => {
             if (url === '/products') {
                 return Promise.resolve({
                     records: [
@@ -605,7 +616,7 @@ describe('ProductPoolList', () => {
     });
 
     it('Scenario 13: Should load category options and handle pagination', async () => {
-        (request.get as any).mockImplementation((url: string, config: any) => {
+        (vi.mocked(request.get)).mockImplementation((url: string, config: any) => {
             if (url === '/product-categories') {
                 if (config?.params?.parentId === '0') {
                     return Promise.resolve([
@@ -627,7 +638,7 @@ describe('ProductPoolList', () => {
             return Promise.resolve({});
         });
 
-        const { container } = render(
+        render(
             <BrowserRouter>
                 <ProductPoolList />
             </BrowserRouter>
@@ -653,7 +664,7 @@ describe('ProductPoolList', () => {
     });
 
     it('Scenario 14: Should handle Batch Operation Errors and Import Errors', async () => {
-        (request.post as any).mockRejectedValue(new Error('Batch Failed'));
+        vi.mocked(request.post).mockRejectedValue(new Error('Batch Failed'));
         
         render(
             <BrowserRouter>
@@ -674,9 +685,11 @@ describe('ProductPoolList', () => {
         
         // Confirm via Mock
         expect(Modal.confirm).toHaveBeenCalled();
-        const deleteCall = (Modal.confirm as any).mock.calls[0][0];
+        const deleteCall = vi.mocked(Modal.confirm).mock.calls[0]?.[0];
         // Trigger onOk
-        await deleteCall.onOk();
+        if (deleteCall && deleteCall.onOk) {
+            await deleteCall.onOk();
+        }
         
         await waitFor(() => {
              // Should verify error message (toast)
@@ -755,7 +768,7 @@ describe('ProductPoolList', () => {
     });
 
     it('Scenario 17: Should load and display tax options', async () => {
-        (request.get as any).mockImplementation((url: string) => {
+        (vi.mocked(request.get)).mockImplementation((url: string) => {
             if (url === '/products') return Promise.resolve({ code: 200, data: { content: [], totalElements: 0 } });
             if (url === '/categories/tree') return Promise.resolve({ code: 200, data: [] });
             // Fix URL to match component: /tax-categories
@@ -764,7 +777,7 @@ describe('ProductPoolList', () => {
             return Promise.resolve({ code: 200, data: [] });
         });
 
-        const { container } = render(
+        render(
             <BrowserRouter>
                 <ProductPoolList />
             </BrowserRouter>
@@ -820,7 +833,7 @@ describe('ProductPoolList', () => {
                 }
             }
         };
-        (request.patch as any).mockImplementation(() => Promise.reject(errorResponse));
+        (vi.mocked(request.patch)).mockImplementation(() => Promise.reject(errorResponse));
 
         // Click "确认选品"
         const selectBtn = screen.getByText('确认选品');
@@ -894,7 +907,7 @@ describe('ProductPoolList', () => {
                 }
             }
         };
-        (request.patch as any).mockImplementation(() => Promise.reject(errorResponse));
+        (vi.mocked(request.patch)).mockImplementation(() => Promise.reject(errorResponse));
 
         // Click "确认选品"
         const selectBtn = screen.getByText('确认选品');

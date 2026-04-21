@@ -8,11 +8,13 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onFinish = async (values: any) => {
     setLoading(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response: any = await login(values);
-      // Backend returns: ApiResponse.data which is JwtResponse { token, id, username, email, roles }
+      // Backend returns: ApiResponse.data which is JwtResponse { token, id, username, email }
       // request.ts interceptor unwraps ApiResponse and returns response.data
       if (response.token) {
         localStorage.setItem('token', response.token);
@@ -22,9 +24,18 @@ const Login: React.FC = () => {
       } else {
          message.error('Login failed: No token received');
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Login error:', error);
-      message.error('登录失败，请检查用户名和密码');
+      // Only show error if it's a 401 (Interceptor doesn't show message for 401)
+      if (error.response && error.response.status === 401) {
+        message.error('登录失败，请检查用户名和密码');
+      } else if (!error.response) {
+        // Network error (Interceptor shows 'Network Error', but we can be more specific if needed)
+        // Usually interceptor handles all 'response' errors. 
+        // If error.response is missing, it might be network timeout.
+      }
+      // For 500/503, interceptor already showed the specific server message.
     } finally {
       setLoading(false);
     }

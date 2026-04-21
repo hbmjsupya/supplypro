@@ -6,16 +6,24 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class JwtUtils {
     private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
+
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+
+    private static final String BLACKLIST_PREFIX = "jwt:blacklist:";
 
     @Value("${supplypro.app.jwtSecret}")
     private String jwtSecret;
@@ -43,7 +51,37 @@ public class JwtUtils {
                .parseClaimsJws(token).getBody().getSubject();
     }
 
+    public Date getExpirationDateFromJwtToken(String token) {
+        return Jwts.parserBuilder().setSigningKey(key()).build()
+                .parseClaimsJws(token).getBody().getExpiration();
+    }
+
+    public void addToBlacklist(String token) {
+        try {
+            Date expirationDate = getExpirationDateFromJwtToken(token);
+            long expirationTime = expirationDate.getTime() - System.currentTimeMillis();
+            if (expirationTime > 0) {
+                redisTemplate.opsForValue().set(BLACKLIST_PREFIX + token, "blacklisted", expirationTime, TimeUnit.MILLISECONDS);
+            }
+        } catch (Exception e) {
+            logger.error("Could not add token to blacklist: {}", e.getMessage());
+        }
+    }
+
+    public boolean isTokenBlacklisted(String token) {
+        try {
+            return Boolean.TRUE.equals(redisTemplate.hasKey(BLACKLIST_PREFIX + token));
+        } catch (Exception e) {
+            logger.error("Could not check token blacklist status: {}", e.getMessage());
+            return false;
+        }
+    }
+
     public boolean validateJwtToken(String authToken) {
+        if (isTokenBlacklisted(authToken)) {
+            logger.error("JWT token is blacklisted");
+            return false;
+        }
         try {
             Jwts.parserBuilder().setSigningKey(key()).build().parseClaimsJws(authToken);
             return true;

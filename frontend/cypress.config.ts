@@ -2,9 +2,10 @@ import { defineConfig } from 'cypress';
 
 export default defineConfig({
   e2e: {
-    setupNodeEvents(on, config) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    setupNodeEvents(_on, _config) {
       // implement node event listeners here
     },
-    baseUrl: 'http://localhost:5173',
+    baseUrl: 'http://127.0.0.1:5173',
   },
 });

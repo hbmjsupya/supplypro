@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import BundleAdd from '../BundleAdd';
 import { BrowserRouter } from 'react-router-dom';
 import * as router from 'react-router-dom';
@@ -60,10 +60,10 @@ describe('BundleAdd Component Automation Test', () => {
         vi.clearAllMocks();
         
         // Default to Add mode
-        (router.useParams as any).mockReturnValue({});
+        vi.mocked(router.useParams).mockReturnValue({});
 
         // Mock Products fetch
-        (request.get as any).mockImplementation((url: string) => {
+        vi.mocked(request.get).mockImplementation((url: string) => {
             if (url === '/products') {
                 return Promise.resolve({
                     records: [
@@ -114,8 +114,8 @@ describe('BundleAdd Component Automation Test', () => {
             return Promise.resolve({});
         });
 
-        (request.post as any).mockResolvedValue({});
-        (request.put as any).mockResolvedValue({});
+        vi.mocked(request.post).mockResolvedValue({});
+        vi.mocked(request.put).mockResolvedValue({});
     });
 
     it('Scenario 1: Should fetch products and render table', async () => {
@@ -152,7 +152,6 @@ describe('BundleAdd Component Automation Test', () => {
 
         // Now should have 2 rows
         await waitFor(() => {
-            const selects = document.querySelectorAll('.ant-select-selector');
             // 1 main select (Sale Type - disabled) + 2 product selects + potential spec selects (if visible)
             // But initially product selects are empty.
             // Let's count rows in table body
@@ -165,12 +164,12 @@ describe('BundleAdd Component Automation Test', () => {
         if (removeIcons.length > 0) {
             fireEvent.click(removeIcons[0]);
             await waitFor(() => {
-                const rows = document.querySelectorAll('.ant-table-tbody tr');
                 // Should be back to 1 (or less if we removed the only one, but logic adds 1 initially)
                 // Actually if we add 1 then remove 1, we have 1 left.
             });
         }
     });
+
 
     it('Scenario 3: Should handle validation error (empty count)', async () => {
         const { container } = render(
@@ -227,7 +226,7 @@ describe('BundleAdd Component Automation Test', () => {
     });
 
     it('Scenario 5: Should load data in Edit Mode and Submit', async () => {
-        (router.useParams as any).mockReturnValue({ id: '123' });
+        vi.mocked(router.useParams).mockReturnValue({ id: '123' });
 
         const { container } = render(
             <BrowserRouter>

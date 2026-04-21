@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { FloatButton, Tabs, Table, Typography, Card, Alert, Modal } from 'antd';
 import { FileTextOutlined, DatabaseOutlined, ApartmentOutlined } from '@ant-design/icons';
-// @ts-ignore
 import Draggable from 'react-draggable';
 
 const { Title, Paragraph, Text } = Typography;
@@ -38,6 +37,7 @@ const PageDoc: React.FC<PageDocProps> = ({
   const [bounds, setBounds] = useState({ left: 0, top: 0, bottom: 0, right: 0 });
   const draggleRef = useRef<HTMLDivElement>(null);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onStart = (_event: any, uiData: any) => {
     const { clientWidth, clientHeight } = window.document.documentElement;
     const targetRect = draggleRef.current?.getBoundingClientRect();
@@ -162,6 +162,7 @@ const PageDoc: React.FC<PageDocProps> = ({
           <Draggable
             disabled={disabled}
             bounds={bounds}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onStart={(event: any, uiData: any) => onStart(event, uiData)}
           >
             <div ref={draggleRef}>{modal}</div>

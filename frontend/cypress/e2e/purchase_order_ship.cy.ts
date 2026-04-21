@@ -1,6 +1,5 @@
 
 describe('Purchase Order Ship Functionality', () => {
-  const poId = 123;
   const mockPO = {
     id: 123,
     orderNo: 'PO1234567890',
@@ -143,8 +142,10 @@ describe('Purchase Order Ship Functionality', () => {
     // Verify Inbound Order creation in localStorage
     cy.window().then((win) => {
       const inboundOrders = JSON.parse(win.localStorage.getItem('sc_inbound_orders_v2') || '[]');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const createdOrder = inboundOrders.find((o: any) => o.poNo === mockPO.orderNo);
-      expect(createdOrder).to.exist;
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      expect(createdOrder).to.not.be.undefined;
       expect(createdOrder.status).to.equal('pending');
       expect(createdOrder.items).to.have.length(1);
     });

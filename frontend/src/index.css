@@ -64,3 +64,22 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* Table row highlight animation for cancelled orders */
+.ant-table-row-highlight {
+  animation: highlight-row 3s ease-out;
+  background-color: #fff1f0 !important;
+}
+
+.ant-table-row-highlight:hover > td {
+  background-color: #ffccc7 !important;
+}
+
+@keyframes highlight-row {
+  0% {
+    background-color: #ff7875 !important;
+  }
+  100% {
+    background-color: transparent;
+  }
+}

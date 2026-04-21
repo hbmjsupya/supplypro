@@ -42,18 +42,22 @@ export interface PageResult<T> {
 }
 
 export const getSuppliers = (params: { page?: number; size?: number } & SupplierSearchCriteria) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return request.get<any, PageResult<SupplierDTO>>('/suppliers', { params });
 };
 
 export const getSupplierById = (id: number) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return request.get<any, SupplierDTO>(`/suppliers/${id}`);
 };
 
 export const createSupplier = (data: Partial<SupplierDTO>) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return request.post<any, SupplierDTO>('/suppliers', data);
 };
 
 export const updateSupplier = (id: number, data: Partial<SupplierDTO>) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return request.put<any, SupplierDTO>(`/suppliers/${id}`, data);
 };
 

@@ -138,6 +138,11 @@ public class SupplierController {
         return ApiResponse.success("Deleted successfully", null);
     }
 
+    @PutMapping("/{id}/status")
+    public ApiResponse<SupplierDTO> toggleStatus(@PathVariable Long id, @RequestParam String status) {
+        return ApiResponse.success("Status updated successfully", supplierService.toggleStatus(id, status));
+    }
+
     @DeleteMapping("/all")
     public ApiResponse<Void> deleteAll() {
         supplierService.deleteAll();

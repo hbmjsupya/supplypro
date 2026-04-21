@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Input, Space, Tag, Form, Row, Col, message, InputNumber, Select, Tooltip, Typography, DatePicker, Modal, Radio, Divider, Card } from 'antd';
+import { Table, Button, Input, Space, Tag, Form, Row, Col, message, InputNumber, Select, Tooltip, Typography, Modal, Divider, Card } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { CheckOutlined, CloseOutlined, ExportOutlined, UndoOutlined, ExclamationCircleOutlined, ImportOutlined, UploadOutlined, HomeOutlined } from '@ant-design/icons';
 import PageDoc from '../../components/PageDoc';
-import type { UploadFile, UploadProps, RcFile } from 'antd/es/upload/interface';
+import SearchFormLayout from '../../components/SearchFormLayout';
+import type { RcFile } from 'antd/es/upload/interface';
 import { Upload } from 'antd';
 import { useExport } from '../../utils/exportUtils';
 import { getWarehouses, getInventoryBatches, createOutboundOrder } from '../../services/warehouseService';
+import { productService } from '../../services/productService';
+import { getSuppliers } from '../../services/supplierService';
+import { confirmPlatformOrder } from '../../services/purchaseOrderService';
 import type { OutboundOrder } from '../../types/warehouse';
+import request from '../../utils/request';
 
 interface ConfirmItemType {
   key: string;
   orderNo: string;
-  orderType: 'OrderPurchase' | 'Replenishment';
+  orderType: 'OrderPurchase' | 'Replenishment' | 'Refund' | 'SubOrder';
   bizNo: string;
   thirdPartyNo: string;
   productName: string;
@@ -37,6 +42,10 @@ interface ConfirmItemType {
   supplierId?: string; // Add supplier ID for selection
   productId?: string;
   skuId?: string;
+  orderRemark?: string;
+  expectedReceiveTime?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
 }
 
 // Mock Master Data for Price Sync
@@ -56,149 +65,244 @@ const mockMasterDataPrice: Record<string, Record<string, number>> = {
   }
 };
 
-// Mock Enabled Suppliers
-const enabledSuppliers = [
-    { value: '晨光文具', label: '晨光文具' },
-    { value: '得力集团', label: '得力集团' },
-    { value: '齐心办公', label: '齐心办公' },
-    { value: '广博股份', label: '广博股份' },
-    { value: '史泰博', label: '史泰博' },
-];
-
-const mockData: ConfirmItemType[] = [
-  {
-    key: '1',
-    orderNo: 'ORD20231028001',
-    orderType: 'OrderPurchase',
-    bizNo: 'SO20231028001-1',
-    thirdPartyNo: 'TP123456',
-    productName: '晨光A4打印纸',
-    specName: '70g/500张/包',
-    quantity: 10,
-    cost: 18.00,
-    supplier: '晨光文具',
-    totalCost: 180.00,
-    receiver: '张三 / 13800138000',
-    address: '上海市浦东新区张江高科园区',
-    projectName: '某某大型国企项目',
-    costType: 'Platform',
-    originalCost: 18.00,
-    originalSupplier: '晨光文具',
-    productId: 'P005',
-    skuId: 'SKU006',
-  },
-  {
-    key: '2',
-    orderNo: 'ORD20231028002',
-    orderType: 'Replenishment',
-    bizNo: 'REP20231028001',
-    thirdPartyNo: '-',
-    productName: '得力订书机',
-    specName: '12号',
-    quantity: 5,
-    cost: 0.00, // Cost is 0 for Supplier Replenishment
-    supplier: '得力集团',
-    totalCost: 0.00,
-    receiver: '李四 / 13900139000',
-    address: '北京市朝阳区CBD',
-    projectName: '售后补发',
-    costType: 'Supplier',
-    originalCost: 0.00,
-    originalSupplier: '得力集团',
-  },
-  // Bundle Split Example (Row A)
-  {
-    key: '3',
-    orderNo: 'ORD20231028003',
-    orderType: 'OrderPurchase',
-    bizNo: 'SO20231028003-1',
-    thirdPartyNo: 'TP987654',
-    productName: '晨光中性笔',
-    specName: '黑色/0.5mm',
-    quantity: 20, // 10 bundles * 2 pens
-    cost: 2.50,
-    supplier: '晨光文具',
-    totalCost: 50.00,
-    receiver: '王五 / 13700137000',
-    address: '广州市天河区科技园',
-    projectName: '办公套装采购',
-    costType: 'Platform',
-    isBundleSplit: true,
-    bundleInfo: {
-      id: 'BDL001',
-      name: '晨光办公套装 (笔+本)',
-      items: [
-        { name: '晨光中性笔', quantity: 2 },
-        { name: '晨光笔记本', quantity: 1 }
-      ]
-    },
-    originalCost: 2.50,
-    originalSupplier: '晨光文具',
-  },
-  // Bundle Split Example (Row B)
-  {
-    key: '4',
-    orderNo: 'ORD20231028003',
-    orderType: 'OrderPurchase',
-    bizNo: 'SO20231028003-1',
-    thirdPartyNo: 'TP987654',
-    productName: '晨光笔记本',
-    specName: 'B5/60页',
-    quantity: 10, // 10 bundles * 1 notebook
-    cost: 5.00,
-    supplier: '晨光文具',
-    totalCost: 50.00,
-    receiver: '王五 / 13700137000',
-    address: '广州市天河区科技园',
-    projectName: '办公套装采购',
-    costType: 'Platform',
-    isBundleSplit: true,
-    bundleInfo: {
-      id: 'BDL001',
-      name: '晨光办公套装 (笔+本)',
-      items: [
-        { name: '晨光中性笔', quantity: 2 },
-        { name: '晨光笔记本', quantity: 1 }
-      ]
-    },
-    originalCost: 5.00,
-    originalSupplier: '晨光文具',
-  },
-];
-
 const PlatformConfirmList: React.FC = () => {
-  const [dataSource, setDataSource] = useState(mockData);
-
-  const [searchText, setSearchText] = useState({
-    supplier: '',
-    orderNo: '',
-    project: '',
-    receiver: '',
-    product: '',
-    timeRange: null,
-    bizNo: '',
-    address: '',
+  const [dataSource, setDataSource] = useState<ConfirmItemType[]>([]);
+  const [originalData, setOriginalData] = useState<ConfirmItemType[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [supplierOptions, setSupplierOptions] = useState<{label: string, value: string}[]>([]);
+  const [paginationConfig, setPaginationConfig] = useState({
+    current: 1,
+    pageSize: 10,
+    showSizeChanger: true,
+    showQuickJumper: false,
+    pageSizeOptions: ['10', '50', '100'],
+    showTotal: (total: number) => `共 ${total} 条记录`
   });
+
+  // Load data from API
+  useEffect(() => {
+    const fetchAndGenerateData = async () => {
+      setLoading(true);
+      try {
+        // Fetch active suppliers for dropdown
+        const supRes: any = await getSuppliers({ page: 0, size: 1000, status: 'ACTIVE' });
+        const suppliers = supRes.content || supRes.records || supRes.data?.content || [];
+        setSupplierOptions(suppliers.map((s: any) => ({ label: s.name, value: String(s.id) })));
+
+        // Try to fetch data from API
+        try {
+          const apiRes: any = await request.get('/platform-pending-orders', { params: { size: 1000, status: 'PENDING' } });
+          const records = apiRes?.data?.records || apiRes?.records || [];
+          
+          if (records.length > 0) {
+            const mappedData: ConfirmItemType[] = records.map((item: any, index: number) => ({
+              key: String(item.id || index + 1),
+              id: item.id,
+              orderNo: item.orderNo,
+              orderType: item.orderType || 'OrderPurchase',
+              bizNo: item.bizNo,
+              thirdPartyNo: item.thirdPartyNo,
+              platformName: item.platformName,
+              platformOrderNo: item.platformOrderNo,
+              productName: item.productName,
+              specName: item.specName || '-',
+              quantity: item.quantity,
+              cost: item.cost,
+              supplier: item.supplierName || '',
+              supplierId: item.supplierId ? String(item.supplierId) : undefined,
+              totalCost: item.totalCost,
+              receiver: item.receiver,
+              address: item.address,
+              projectName: item.projectName,
+              costType: item.costType || 'Platform',
+              originalCost: item.cost,
+              originalSupplier: item.supplierName,
+              productId: String(item.productId),
+              skuId: item.skuId ? String(item.skuId) : undefined,
+              expectedReceiveTime: item.expectedReceiveTime,
+              orderRemark: item.orderRemark,
+            }));
+            
+            setDataSource(mappedData);
+            setOriginalData(mappedData);
+            setLoading(false);
+            return;
+          }
+        } catch (apiError) {
+          console.log('API not available, falling back to mock data generation', apiError);
+        }
+        
+        // Fallback to mock data generation if API fails or returns empty
+        const res: any = await productService.getAll({ page: 0, size: 100, status: 'ON_SHELF' });
+        const products = res.data?.records || res.records || [];
+        
+        // Extract all SKUs
+        const allSkus: { product: any, sku: any }[] = [];
+        products.forEach((p: any) => {
+          if (p.skus && p.skus.length > 0) {
+            p.skus.forEach((s: any) => {
+              allSkus.push({ product: p, sku: s });
+            });
+          }
+        });
+
+        if (allSkus.length === 0) {
+          message.warning('商品池中没有启用的商品规格，无法生成虚拟数据');
+          setLoading(false);
+          return;
+        }
+
+        // 尝试从 sessionStorage 获取已缓存的模拟数据
+        const cachedData = sessionStorage.getItem('mockPlatformConfirmData');
+        if (cachedData) {
+            try {
+                const parsedData = JSON.parse(cachedData);
+                if (Array.isArray(parsedData) && parsedData.length > 0) {
+                    // Check if cached data has the new platform fields, if not, patch them
+                    const hasPlatformInfo = parsedData[0].platformName !== undefined;
+                    
+                    if (!hasPlatformInfo) {
+                        const platforms = ['得物', '天猫', '京东', '淘宝', '拼多多'];
+                        const patchedData = parsedData.map((item, index) => {
+                            const platformName = platforms[Math.floor(Math.random() * platforms.length)];
+                            const platformOrderNo = `PO${Date.now()}${String(index).padStart(4, '0')}`;
+                            const thirdPartyNo = `TP${Date.now()}${String(index).padStart(4, '0')}`; // 独立的三方单号
+                            return {
+                                ...item,
+                                platformName,
+                                platformOrderNo,
+                                thirdPartyNo: thirdPartyNo // 使用独立的三方单号
+                            };
+                        });
+                        sessionStorage.setItem('mockPlatformConfirmData', JSON.stringify(patchedData));
+                        setDataSource(patchedData);
+                        setOriginalData(patchedData);
+                    } else {
+                        setDataSource(parsedData);
+                        setOriginalData(parsedData);
+                    }
+                    
+                    setLoading(false);
+                    return;
+                }
+            } catch (e) {
+                console.error('Failed to parse cached mock data', e);
+            }
+        }
+
+        const generatedData: ConfirmItemType[] = [];
+        let currentOrderNo = `ORD${Date.now()}000`;
+        const orderTypes: ('SubOrder' | 'Replenishment' | 'Refund')[] = ['SubOrder', 'Replenishment', 'Refund'];
+
+        for (let i = 0; i < 100; i++) {
+          // Change orderNo every 2-3 items to simulate multi-item orders
+          if (i > 0 && Math.random() > 0.6) {
+            currentOrderNo = `ORD${Date.now()}${String(i).padStart(3, '0')}`;
+          }
+
+          const skuObj = allSkus[i % allSkus.length];
+          const product = skuObj.product;
+          const sku = skuObj.sku;
+          
+          const qty = Math.floor(Math.random() * 50) + 1;
+          const cost = sku.costPrice || 0;
+          const totalCost = cost * qty;
+          const supplierName = sku.supplier?.name || product.defaultSupplierName || '默认供应商';
+
+          const orderType = i % 2 === 0 ? 'OrderPurchase' : 'Replenishment'; // Randomly assign OrderPurchase or Replenishment for testing
+          
+          let costType: 'Platform' | 'Supplier' = 'Platform';
+          if (orderType === 'Replenishment') {
+              costType = Math.random() > 0.7 ? 'Supplier' : 'Platform'; // 30% chance of Supplier for Replenishment
+          }
+
+          // Generate mock expectedReceiveTime (1-10 days from now)
+          const futureDate = new Date();
+          futureDate.setDate(futureDate.getDate() + Math.floor(Math.random() * 10) + 1);
+          const expectedReceiveTime = futureDate.toISOString().replace('T', ' ').substring(0, 19);
+
+          // Generate mock orderRemark
+          const remarks = [
+            '加急处理，客户要求包装完好，千万不要破损。',
+            '请在工作日配送，周末无人收货。',
+            '送货前请提前电话联系。',
+            '包含易碎品，请小心轻放。',
+            '',
+            '',
+            ''
+          ];
+          const orderRemark = remarks[Math.floor(Math.random() * remarks.length)];
+
+          // 补充独立的 bizNo, platformName, platformOrderNo 和 thirdPartyNo
+          const platforms = ['得物', '天猫', '京东', '淘宝', '拼多多'];
+          const platformName = platforms[Math.floor(Math.random() * platforms.length)];
+          const platformOrderNo = `PO${Date.now()}${String(i).padStart(4, '0')}`;
+          const thirdPartyNo = `TP${Date.now()}${String(i).padStart(4, '0')}`; // 独立的三方单号
+          const bizNo = `BIZ${Date.now()}${String(i).padStart(4, '0')}`;
+
+          generatedData.push({
+            key: String(i + 1),
+            orderNo: currentOrderNo,
+            orderType: orderType,
+            bizNo: bizNo,
+            thirdPartyNo: thirdPartyNo, // 使用独立的三方单号
+            platformName: platformName,
+            platformOrderNo: platformOrderNo,
+            productName: product.name,
+            specName: sku.specification || sku.name || '-',
+            quantity: qty,
+            cost: cost,
+            supplier: supplierName,
+            totalCost: totalCost,
+            receiver: `用户${i} / 138${String(Math.floor(Math.random() * 100000000)).padStart(8, '0')}`,
+            address: '上海市浦东新区张江高科园区',
+            projectName: '日常采购项目',
+            costType: costType,
+            originalCost: cost,
+            originalSupplier: supplierName,
+            productId: String(product.id),
+            skuId: String(sku.id),
+            expectedReceiveTime,
+            orderRemark,
+          });
+        }
+        
+        setDataSource(generatedData);
+        setOriginalData(generatedData);
+        // 将新生成的模拟数据存入 sessionStorage，保证当前会话内刷新页面数据不变
+        sessionStorage.setItem('mockPlatformConfirmData', JSON.stringify(generatedData));
+      } catch (error) {
+        console.error('Failed to generate mock data:', error);
+        message.error('生成虚拟数据失败');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAndGenerateData();
+  }, []);
 
   // Import Feature State
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [importLoading, setImportLoading] = useState(false);
   const [importSummary, setImportSummary] = useState<{
       total: number;
       success: number;
       error: number;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       changes: any[];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       errors: any[];
   }>({ total: 0, success: 0, error: 0, changes: [], errors: [] });
   
   // Sub-warehouse Shipment State
   const [shipModalOpen, setShipModalOpen] = useState(false);
   const [currentShipItem, setCurrentShipItem] = useState<ConfirmItemType | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [warehouses, setWarehouses] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [inventory, setInventory] = useState<any[]>([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(null);
   const [selectedBatches, setSelectedBatches] = useState<string[]>([]);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   useEffect(() => {
     // Load warehouse data for sub-warehouse shipment feature
@@ -208,50 +312,12 @@ const PlatformConfirmList: React.FC = () => {
     });
   }, []);
 
-  const onSelectChange = (newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
-  };
-
-  const handleBatchConfirm = () => {
-    if (selectedRowKeys.length === 0) {
-        message.warning('请先选择要确认的订单');
-        return;
-    }
-    Modal.confirm({
-        title: `确认批量提交 ${selectedRowKeys.length} 条订单?`,
-        icon: <ExclamationCircleOutlined />,
-        content: '提交后将生成正式采购单',
-        onOk: () => {
-             setDataSource(dataSource.filter(item => !selectedRowKeys.includes(item.key)));
-             setSelectedRowKeys([]);
-             message.success('批量确认成功');
-        }
-    });
-  };
-
-  const handleBatchReject = () => {
-    if (selectedRowKeys.length === 0) {
-        message.warning('请先选择要拒回的订单');
-        return;
-    }
-    Modal.confirm({
-        title: `确认批量拒回 ${selectedRowKeys.length} 条订单?`,
-        content: '拒回后将触发退款流程',
-        okType: 'danger',
-        onOk: () => {
-             setDataSource(dataSource.filter(item => !selectedRowKeys.includes(item.key)));
-             setSelectedRowKeys([]);
-             message.success('批量拒回成功');
-        }
-    });
-  };
-
   const { handleExport, exporting, progress } = useExport<ConfirmItemType>({
     filenamePrefix: '平台订单采购确认列表',
     fetchData: () => dataSource,
     columns: [
         { title: '采购单号', dataIndex: 'orderNo' },
-        { title: '业务类型', dataIndex: 'orderType', render: (val) => val === 'OrderPurchase' ? '订单采购' : '补货采购' },
+        { title: '采购类型', dataIndex: 'orderType', render: (val) => val === 'OrderPurchase' ? '订单采购' : val === 'SubOrder' ? '子订单' : val === 'Replenishment' ? '补货采购' : val === 'Refund' ? '退款单' : val },
         { title: '业务单号', dataIndex: 'bizNo' },
         { title: '三方子订单号', dataIndex: 'thirdPartyNo' },
         { title: '归属项目', dataIndex: 'projectName' },
@@ -268,9 +334,79 @@ const PlatformConfirmList: React.FC = () => {
     ]
   });
 
+  const [form] = Form.useForm();
+  const businessTypeVal = Form.useWatch('businessType', form);
+  const isSupplierCostDisabled = businessTypeVal && businessTypeVal.length > 0 && !businessTypeVal.includes('Replenishment');
+
+  // Auto clear Supplier cost type if it's disabled
+  useEffect(() => {
+      if (isSupplierCostDisabled) {
+          const currentCostType = form.getFieldValue('costType') || [];
+          if (currentCostType.includes('Supplier')) {
+              form.setFieldsValue({
+                  costType: currentCostType.filter((t: string) => t !== 'Supplier')
+              });
+              handleSearch();
+          }
+      }
+  }, [isSupplierCostDisabled, form]);
   const handleSearch = () => {
-    // Mock search logic
-    message.success('查询成功');
+    setLoading(true);
+    setTimeout(() => {
+      const values = form.getFieldsValue();
+      const { orderNo, supplier, businessType, costType, orderRemark, sortOrder } = values;
+      
+      let filteredData = [...originalData];
+      
+      if (orderNo) {
+          filteredData = filteredData.filter(item => 
+              item.orderNo.includes(orderNo) || item.bizNo.includes(orderNo)
+          );
+      }
+      
+      if (supplier) {
+          filteredData = filteredData.filter(item => 
+              item.supplier.includes(supplier)
+          );
+      }
+      
+      if (businessType && businessType.length > 0) {
+          filteredData = filteredData.filter(item => 
+              businessType.includes(item.orderType)
+          );
+      }
+
+      if (costType && costType.length > 0) {
+          filteredData = filteredData.filter(item => 
+              costType.includes(item.costType)
+          );
+      }
+      
+      if (orderRemark) {
+          filteredData = filteredData.filter(item => 
+              item.orderRemark && item.orderRemark.includes(orderRemark)
+          );
+      }
+
+      if (sortOrder === 'receiveTimeAsc') {
+          filteredData.sort((a, b) => {
+              if (!a.expectedReceiveTime) return 1;
+              if (!b.expectedReceiveTime) return -1;
+              return a.expectedReceiveTime.localeCompare(b.expectedReceiveTime);
+          });
+      } else if (sortOrder === 'receiveTimeDesc') {
+          filteredData.sort((a, b) => {
+              if (!a.expectedReceiveTime) return 1;
+              if (!b.expectedReceiveTime) return -1;
+              return b.expectedReceiveTime.localeCompare(a.expectedReceiveTime);
+          });
+      }
+      
+      setDataSource(filteredData);
+      setPaginationConfig(prev => ({ ...prev, current: 1, total: filteredData.length }));
+      setLoading(false);
+      message.success('查询成功');
+    }, 150); // Simulate < 200ms response time
   };
 
   // Mock Import Logic
@@ -282,7 +418,6 @@ const PlatformConfirmList: React.FC = () => {
           return Upload.LIST_IGNORE;
       }
 
-      setImportLoading(true);
       message.loading({ content: '正在解析文件...', key: 'importProcess' });
 
       // 2. Simulate Parsing Delay & Logic
@@ -296,7 +431,9 @@ const PlatformConfirmList: React.FC = () => {
               { orderNo: 'INVALID_NO', newCost: 10, newSupplier: 'Unknown' } // Error
           ];
 
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const changes: any[] = [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const errors: any[] = [];
           let successCount = 0;
 
@@ -338,7 +475,7 @@ const PlatformConfirmList: React.FC = () => {
           });
 
           message.success({ content: '文件解析完成', key: 'importProcess' });
-          setImportLoading(false);
+          // setImportLoading(false);
           setIsImportModalOpen(true);
       }, 1500);
 
@@ -375,19 +512,6 @@ const PlatformConfirmList: React.FC = () => {
               </div>
           )
       });
-  };
-
-  const resetSearch = () => {
-    setSearchText({
-      supplier: '',
-      orderNo: '',
-      project: '',
-      receiver: '',
-      product: '',
-      timeRange: null,
-      bizNo: '',
-      address: '',
-    });
   };
 
   const handleSupplierChange = (key: string, value: string) => {
@@ -477,19 +601,43 @@ const PlatformConfirmList: React.FC = () => {
         title: '确认提交',
         icon: <ExclamationCircleOutlined />,
         content: confirmContent,
-        onOk() {
-            // Check concurrency (mock)
-            if (Math.random() > 0.95) {
-                message.error('该条信息不存在（可能已被处理），请刷新页面');
-                return;
+        async onOk() {
+            try {
+                // Call backend API
+                await confirmPlatformOrder({
+                    orderNo: item.orderNo,
+                    supplierName: item.supplier,
+                    supplierId: item.supplierId ? parseInt(item.supplierId) : undefined,
+                    businessType: item.orderType,
+                    productId: item.productId ? parseInt(item.productId) : 0,
+                    skuId: item.skuId ? parseInt(item.skuId) : 0,
+                    specName: item.specName,
+                    quantity: item.quantity,
+                    cost: item.cost,
+                    costType: item.costType,
+                    expectedReceiveTime: item.expectedReceiveTime,
+                    remark: item.orderRemark,
+                    receiver: item.receiver,
+                    address: item.address,
+                    bizNo: item.bizNo,
+                    platformName: item.platformName,
+                    platformOrderNo: item.platformOrderNo,
+                    thirdPartyNo: item.thirdPartyNo, // 使用独立的三方单号
+                    projectName: item.projectName
+                });
+
+                // Update UI state
+                const newDataSource = dataSource.filter(i => i.key !== key);
+                setDataSource(newDataSource);
+                
+                // Update session storage cache
+                sessionStorage.setItem('mockPlatformConfirmData', JSON.stringify(newDataSource));
+                
+                message.success('已成功生成采购单');
+            } catch (error) {
+                console.error('Failed to confirm platform order:', error);
+                message.error('生成采购单失败');
             }
-            // Log operation
-            if (isModified) {
-                console.log(`[Operation Log] User modified order ${item.orderNo}: Supplier(${item.originalSupplier} to ${item.supplier}), Cost(${item.originalCost} to ${item.cost})`);
-            }
-            
-            setDataSource(dataSource.filter(item => item.key !== key));
-            message.success('已确认生成采购单');
         }
     });
   };
@@ -512,68 +660,122 @@ const PlatformConfirmList: React.FC = () => {
           return;
       }
       
-      // Calculate total shipped qty from selected batches
       let remainingQty = currentShipItem.quantity;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const orderItems: any[] = [];
-      // Respect selection order if possible, or just filter
-      // Note: inventory.filter might change order, but usually consistent
-      const selectedBatchDetails = inventory.filter(b => selectedBatches.includes(b.batchNo));
+      const selectedBatchDetails = inventory
+          .filter(b => selectedBatches.includes(b.batchNo))
+          .map(b => ({
+              ...b,
+              availableForShip: b.availableForShip || (b.currentQty - (b.lockedQty || 0))
+          }))
+          .sort((a, b) => a.availableForShip - b.availableForShip);
 
       for (const batch of selectedBatchDetails) {
           if (remainingQty <= 0) break;
-          const takeQty = Math.min(batch.currentQty, remainingQty);
+          const takeQty = Math.min(batch.availableForShip, remainingQty);
           orderItems.push({
-              productId: currentShipItem.productId || 'P_MOCK',
-              skuId: currentShipItem.skuId || 'SKU_MOCK',
+              batchId: batch.id,
+              productId: currentShipItem.productId || '',
+              skuId: currentShipItem.skuId || '',
               productName: currentShipItem.productName,
               specName: currentShipItem.specName,
               quantity: takeQty,
+              unitCost: batch.unitCost,
               batchNo: batch.batchNo
           });
           remainingQty -= takeQty;
       }
       
       if (remainingQty > 0) {
-           message.warning(`所选批次库存不足，剩余 ${remainingQty} 未分配`);
-           // Add unassigned item
-           orderItems.push({
-              productId: currentShipItem.productId || 'P_MOCK',
-              skuId: currentShipItem.skuId || 'SKU_MOCK',
-              productName: currentShipItem.productName,
-              specName: currentShipItem.specName,
-              quantity: remainingQty,
-           });
+           message.error(`所选批次可发数量不足，还差 ${remainingQty} 件，请重新选择`);
+           return;
       }
 
-      const outboundOrder: OutboundOrder = {
-          id: Date.now().toString(),
-          bizNo: currentShipItem.bizNo,
-          warehouseCode: selectedWarehouse,
-          status: 'pending', // Pending shipment confirmation by warehouse
-          createTime: new Date().toISOString(),
-          items: orderItems
-      };
-
-      await createOutboundOrder(outboundOrder);
-      message.success('已生成分仓出库单');
-      setDataSource(dataSource.filter(item => item.key !== currentShipItem.key));
-      setShipModalOpen(false);
+      try {
+          await createOutboundOrder({
+              sourceType: 'PURCHASE',
+              sourceRefNo: currentShipItem.orderNo,
+              warehouseId: selectedWarehouse,
+              items: orderItems
+          });
+          message.success('已生成分仓出库单，库存已冻结');
+          setDataSource(dataSource.filter(item => item.key !== currentShipItem.key));
+          setShipModalOpen(false);
+      } catch (e: any) {
+          message.error(e?.response?.data?.message || '生成分仓出库单失败');
+      }
   };
 
-  // Get available batches for current item and selected warehouse
   const getAvailableBatches = () => {
       if (!currentShipItem || !selectedWarehouse) return [];
       
       return inventory.filter(b => {
-          if (b.warehouseCode !== selectedWarehouse) return false;
+          if (String(b.warehouseId) !== String(selectedWarehouse)) return false;
+          const availableForShip = b.availableForShip || (b.currentQty - (b.lockedQty || 0));
+          if (availableForShip <= 0) return false;
           
-          // Exact match priority
-          if (currentShipItem.skuId && b.skuId === currentShipItem.skuId) return true;
-          if (currentShipItem.productId && b.productId === currentShipItem.productId) return true;
+          if (!currentShipItem.productId || String(b.productId) !== String(currentShipItem.productId)) {
+              return false;
+          }
           
-          // Name match fallback
-          return b.productName.includes(currentShipItem.productName) || currentShipItem.productName.includes(b.productName);
+          if (currentShipItem.skuId) {
+              return String(b.skuId) === String(currentShipItem.skuId);
+          }
+          
+          if (currentShipItem.specName && b.specName) {
+              return currentShipItem.specName === b.specName || 
+                     b.specName.includes(currentShipItem.specName) ||
+                     currentShipItem.specName.includes(b.specName);
+          }
+          
+          return true;
       });
+  };
+
+  const hasAvailableInventory = (record: ConfirmItemType) => {
+      if (!inventory || inventory.length === 0) {
+          return false;
+      }
+      
+      const warehouseQtyMap: Record<string, number> = {};
+      
+      inventory.forEach(b => {
+          const availableForShip = b.availableForShip || (b.currentQty - (b.lockedQty || 0));
+          if (availableForShip <= 0) return;
+          
+          const invProductId = String(b.productId || '');
+          const invSkuId = String(b.skuId || '');
+          const recProductId = String(record.productId || '');
+          const recSkuId = String(record.skuId || '');
+          
+          if (invProductId && recProductId && invProductId === recProductId) {
+              let isMatch = false;
+              
+              if (recSkuId && invSkuId) {
+                  isMatch = recSkuId === invSkuId;
+              } else if (recSkuId && !invSkuId) {
+                  isMatch = false;
+              } else if (!recSkuId && invSkuId) {
+                  isMatch = false;
+              } else {
+                  if (record.specName && b.specName) {
+                      isMatch = record.specName === b.specName || 
+                                b.specName.includes(record.specName) ||
+                                record.specName.includes(b.specName);
+                  } else {
+                      isMatch = true;
+                  }
+              }
+              
+              if (isMatch) {
+                  const wCode = b.warehouseCode;
+                  warehouseQtyMap[wCode] = (warehouseQtyMap[wCode] || 0) + availableForShip;
+              }
+          }
+      });
+      
+      return Object.values(warehouseQtyMap).some(totalQty => totalQty >= record.quantity);
   };
 
   const columns: ColumnsType<ConfirmItemType> = [
@@ -596,16 +798,18 @@ const PlatformConfirmList: React.FC = () => {
         }}>
           {/* Row 1: Header Titles */}
           <Row gutter={16} style={{ background: '#fafafa', padding: '8px', fontWeight: 'bold', borderBottom: '1px solid #f0f0f0' }}>
-            <Col span={4}>订单号/业务类型</Col>
-            <Col span={4}>业务单号</Col>
-            <Col span={3}>三方子订单号</Col>
-            <Col span={3}>归属项目</Col>
-            <Col span={6}>收货信息</Col>
-            <Col span={4}>成本类型</Col>
+            <Col span={3}>订单号/采购类型</Col>
+            <Col span={3}>业务单号</Col>
+            <Col span={3}>三方信息</Col>
+            <Col span={3}>期望收货时间</Col>
+            <Col span={4}>收货信息</Col>
+            <Col span={4}>订单备注</Col>
+            <Col span={2}>归属项目</Col>
+            <Col span={2}>成本承担方</Col>
           </Row>
           {/* Row 2: Header Values */}
           <Row gutter={16} style={{ padding: '8px', borderBottom: '1px solid #f0f0f0', alignItems: 'center' }}>
-            <Col span={4}>
+            <Col span={3}>
                 <Space direction="vertical" size={0}>
                     <Typography.Text copyable>{record.orderNo}</Typography.Text>
                     <Tag color={record.orderType === 'OrderPurchase' ? 'blue' : 'orange'}>
@@ -613,22 +817,49 @@ const PlatformConfirmList: React.FC = () => {
                     </Tag>
                 </Space>
             </Col>
+            <Col span={3}>
+                <Typography.Text copyable>{record.bizNo}</Typography.Text>
+            </Col>
+            <Col span={3}>
+                <Space direction="vertical" size={0}>
+                    <Typography.Text>{record.platformName}</Typography.Text>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>{record.platformOrderNo}</Typography.Text>
+                </Space>
+            </Col>
+            <Col span={3}>
+                <Typography.Text>{record.expectedReceiveTime || '-'}</Typography.Text>
+            </Col>
             <Col span={4}>
-                <Typography.Text>{record.bizNo}</Typography.Text>
-            </Col>
-            <Col span={3}>
-                <Typography.Text>{record.thirdPartyNo}</Typography.Text>
-            </Col>
-            <Col span={3}>
-                <Typography.Text>{record.projectName}</Typography.Text>
-            </Col>
-            <Col span={6}>
-                 <Space direction="vertical" size={0}>
+                 <Space direction="vertical" size={0} style={{ maxWidth: '100%' }}>
                     <Typography.Text>{record.receiver}</Typography.Text>
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>{record.address}</Typography.Text>
+                    <Tooltip title={record.address}>
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }} ellipsis={true}>
+                            {record.address}
+                        </Typography.Text>
+                    </Tooltip>
                 </Space>
             </Col>
             <Col span={4}>
+                <Tooltip title={record.orderRemark || '无备注'} placement="topLeft">
+                    <div style={{ 
+                        fontSize: 12, 
+                        color: '#666',
+                        whiteSpace: 'pre-wrap', 
+                        wordBreak: 'break-all',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        maxHeight: '36px'
+                    }}>
+                        {record.orderRemark || '-'}
+                    </div>
+                </Tooltip>
+            </Col>
+            <Col span={2}>
+                <Typography.Text>{record.projectName}</Typography.Text>
+            </Col>
+            <Col span={2}>
                 <Tag color={record.costType === 'Platform' ? 'blue' : 'green'}>
                     {record.costType === 'Platform' ? '平台承担' : '供应商承担'}
                 </Tag>
@@ -666,11 +897,15 @@ const PlatformConfirmList: React.FC = () => {
                     <Row gutter={8} align="middle">
                         <Col span={10}>
                             <Select 
+                                showSearch
                                 value={record.supplier}
                                 style={{ width: '100%' }}
                                 size="small"
                                 placeholder="选择供应商"
-                                options={enabledSuppliers}
+                                options={supplierOptions}
+                                filterOption={(input, option) =>
+                                  (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
+                                }
                                 onChange={(val) => handleSupplierChange(record.key, val)}
                             />
                         </Col>
@@ -705,12 +940,16 @@ const PlatformConfirmList: React.FC = () => {
                 </div>
              </Col>
              <Col span={6}>
-                 <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                 <Space style={{ width: '100%', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                      <Button type="primary" icon={<CheckOutlined />} onClick={() => handleConfirm(record.key)}>确认采购</Button>
                      <Button danger icon={<CloseOutlined />} onClick={() => handleReject(record.key)}>拒回</Button>
-                     <Tooltip title="直接从自有仓库发货，生成出库单">
-                        <Button type="dashed" icon={<HomeOutlined />} onClick={() => handleSubWarehouseShip(record)}>分仓发货</Button>
-                     </Tooltip>
+                     {record.costType === 'Platform' && 
+                      (record.orderType === 'OrderPurchase' || record.orderType === 'Replenishment') && 
+                      hasAvailableInventory(record) && (
+                         <Tooltip title="直接从自有仓库发货，生成出库单">
+                            <Button icon={<HomeOutlined />} onClick={() => handleSubWarehouseShip(record)}>分仓发货</Button>
+                         </Tooltip>
+                     )}
                  </Space>
              </Col>
           </Row>
@@ -731,44 +970,88 @@ const PlatformConfirmList: React.FC = () => {
             ]}
         />
         
-        <Card variant="borderless">
-            {/* Search Form (Simplified) */}
-            <Form layout="inline" style={{ marginBottom: 16 }}>
-                <Form.Item label="单号"><Input placeholder="平台单号/业务单号" /></Form.Item>
-                <Form.Item label="供应商"><Input placeholder="供应商名称" /></Form.Item>
-                <Form.Item>
-                    <Button type="primary" onClick={handleSearch}>查询</Button>
-                </Form.Item>
-                <Form.Item>
-                     <Space>
-                        <Button icon={<ExportOutlined />} onClick={handleExport} loading={exporting}>
-                            {exporting ? `导出中 ${progress}%` : '导出待确认清单'}
-                        </Button>
-                     </Space>
-                </Form.Item>
-            </Form>
+        <SearchFormLayout onSearch={handleSearch} onReset={() => { form.resetFields(); handleSearch(); }} form={form}>
+            <Form.Item name="orderNo" label="单号" style={{ marginBottom: 0 }}>
+               <Input placeholder="平台单号/业务单号" allowClear />
+            </Form.Item>
+            <Form.Item name="supplier" label="供应商" style={{ marginBottom: 0 }}>
+               <Input placeholder="供应商名称" allowClear />
+            </Form.Item>
+            <Form.Item name="businessType" label="采购类型" style={{ marginBottom: 0 }}>
+                <Select
+                    mode="multiple"
+                    placeholder="请选择采购类型"
+                     allowClear
+                     options={[
+                         { label: '订单采购', value: 'OrderPurchase' },
+                         { label: '补货采购', value: 'Replenishment' }
+                     ]}
+                 />
+             </Form.Item>
+             <Form.Item name="costType" label="成本类型" style={{ marginBottom: 0 }}>
+                 <Select
+                     mode="multiple"
+                     placeholder="请选择成本类型"
+                     allowClear
+                     options={[
+                         { label: '平台承担', value: 'Platform' },
+                         { 
+                             label: '供应商承担', 
+                             value: 'Supplier',
+                             disabled: isSupplierCostDisabled,
+                             title: isSupplierCostDisabled ? '仅补货采购支持供应商承担' : undefined
+                         }
+                     ]}
+                 />
+             </Form.Item>
+             <Form.Item name="orderRemark" label="订单备注" style={{ marginBottom: 0 }}>
+                <Input placeholder="模糊搜索备注信息" allowClear />
+             </Form.Item>
+             <Form.Item name="sortOrder" label="排序方式" style={{ marginBottom: 0 }}>
+                 <Select
+                     placeholder="默认排序"
+                     allowClear
+                     options={[
+                         { label: '期望收货时间升序', value: 'receiveTimeAsc' },
+                         { label: '期望收货时间降序', value: 'receiveTimeDesc' }
+                     ]}
+                 />
+             </Form.Item>
+        </SearchFormLayout>
 
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
+             <Space>
+                <Button icon={<ExportOutlined />} onClick={handleExport} loading={exporting}>
+                    {exporting ? `导出中 ${progress}%` : '导出待确认清单'}
+                </Button>
+                <Upload 
+                    accept=".xls,.xlsx" 
+                    showUploadList={false} 
+                    beforeUpload={handleFileUpload}
+                >
+                    <Button icon={<ImportOutlined />}>导入文件批量确认</Button>
+                </Upload>
+             </Space>
+        </div>
+
+        <Card variant="borderless">
             <Table 
-                rowSelection={{ selectedRowKeys, onChange: onSelectChange }}
                 columns={columns} 
                 dataSource={dataSource} 
+                loading={loading}
                 showHeader={false} // Custom Card-like Row
-                pagination={{ pageSize: 5 }}
+                scroll={{ x: 1200 }}
+                pagination={{
+                    ...paginationConfig,
+                    onChange: (page, pageSize) => {
+                        setPaginationConfig(prev => ({
+                            ...prev,
+                            current: page,
+                            pageSize: pageSize
+                        }));
+                    }
+                }}
             />
-
-            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between' }}>
-                <Space>
-                    <Button type="primary" onClick={handleBatchConfirm} disabled={selectedRowKeys.length === 0}>批量确认</Button>
-                    <Upload 
-                        accept=".xls,.xlsx" 
-                        showUploadList={false} 
-                        beforeUpload={handleFileUpload}
-                    >
-                        <Button icon={<ImportOutlined />}>导入文件批量确认</Button>
-                    </Upload>
-                    <Button danger onClick={handleBatchReject} disabled={selectedRowKeys.length === 0}>批量拒回</Button>
-                </Space>
-            </div>
         </Card>
 
         {/* Sub-warehouse Ship Modal */}
@@ -782,7 +1065,32 @@ const PlatformConfirmList: React.FC = () => {
             <Form layout="vertical">
                 <Form.Item label="发货仓库">
                     <Select 
-                        options={warehouses.map(w => ({ label: w.name, value: w.code }))}
+                        options={warehouses
+                            .filter(w => {
+                                if (!currentShipItem) return false;
+                                
+                                // Calculate total available inventory for this specific warehouse
+                                let totalAvailableQty = 0;
+                                inventory.forEach(b => {
+                                     if (b.warehouseCode !== w.code) return;
+                                     if (b.currentQty <= 0) return;
+                                     if (currentShipItem.productId && String(b.productId) === String(currentShipItem.productId)) {
+                                          let isMatch = true;
+                                          if (currentShipItem.skuId && String(b.skuId) !== String(currentShipItem.skuId)) {
+                                              if (!(currentShipItem.specName && b.specName && (currentShipItem.specName === b.specName || b.specName.includes(currentShipItem.specName)))) {
+                                                  isMatch = false;
+                                              }
+                                          }
+                                          if (isMatch) {
+                                              totalAvailableQty += b.currentQty;
+                                          }
+                                     }
+                                 });
+                                 
+                                 // Only show warehouse if its total inventory can fulfill the order
+                                 return totalAvailableQty >= currentShipItem.quantity;
+                            })
+                            .map(w => ({ label: w.name, value: w.id }))}
                         onChange={setSelectedWarehouse}
                         value={selectedWarehouse}
                     />
@@ -793,7 +1101,13 @@ const PlatformConfirmList: React.FC = () => {
                          <Select 
                             mode="multiple"
                             options={getAvailableBatches()
-                                .map(i => ({ label: `${i.batchNo} (余${i.currentQty})`, value: i.batchNo }))
+                                .map(i => { 
+                                    const availableForShip = i.availableForShip || (i.currentQty - (i.lockedQty || 0));
+                                    return {
+                                        label: `${i.batchNo} (可发${availableForShip}, 单价¥${i.unitCost?.toFixed(2) || '0.00'})`, 
+                                        value: i.batchNo 
+                                    };
+                                })
                             }
                             onChange={setSelectedBatches}
                             value={selectedBatches}

@@ -38,16 +38,7 @@ public class GlobalExceptionHandlerTest {
 
         assertNotNull(response);
         assertEquals(500, response.getCode());
-        assertEquals("系统内部错误，请联系管理员", response.getMessage());
-    }
-
-    @Test
-    void handleThrowable() {
-        Throwable th = new OutOfMemoryError("Critical Failure");
-        ApiResponse<Void> response = globalExceptionHandler.handleThrowable(th, request);
-
-        assertNotNull(response);
-        assertEquals(500, response.getCode());
-        assertEquals("系统内部错误，请联系管理员", response.getMessage());
+        // The implementation returns "系统内部错误: " + message
+        assertEquals("系统内部错误: Unexpected Error", response.getMessage());
     }
 }

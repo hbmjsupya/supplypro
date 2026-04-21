@@ -1,13 +1,15 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Select, Spin, Empty } from 'antd';
 import { getSuppliers, SupplierDTO } from '../../../services/supplierService';
 import { debounce } from 'lodash';
 
 interface SupplierSelectProps {
   value?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onChange?: (value: number, option: any) => void;
   placeholder?: string;
   id?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any; // Allow other props
 }
 
@@ -21,6 +23,7 @@ const SupplierSelect: React.FC<SupplierSelectProps> = ({ value, onChange, placeh
   const loadSuppliers = async (name: string) => {
     setFetching(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const res: any = await getSuppliers({
         page: 0,
         size: 20,
@@ -46,6 +49,7 @@ const SupplierSelect: React.FC<SupplierSelectProps> = ({ value, onChange, placeh
     return () => {
       debouncedFetch.cancel();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

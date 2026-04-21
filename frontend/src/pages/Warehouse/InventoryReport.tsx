@@ -1,30 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Card, Tabs, Button, DatePicker, Space, Statistic, Row, Col, message } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
-import { getInboundOrders, getOutboundOrders, getInventoryBatches, getWarehouseNameMap } from '../../services/warehouseService';
+import { getInventoryBatches, getWarehouseNameMap } from '../../services/warehouseService';
 import PageDoc from '../../components/PageDoc';
 
 const { RangePicker } = DatePicker;
 
 const InventoryReport: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [inventory, setInventory] = useState<any[]>([]);
-  const [inbound, setInbound] = useState<any[]>([]);
-  const [outbound, setOutbound] = useState<any[]>([]);
   const [warehouseMap, setWarehouseMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const [inv, inb, out, whMap] = await Promise.all([
+      const [inv, whMap] = await Promise.all([
         getInventoryBatches(),
-        getInboundOrders(),
-        getOutboundOrders(),
         getWarehouseNameMap()
       ]);
       setInventory(inv);
-      setInbound(inb);
-      setOutbound(out);
       setWarehouseMap(whMap);
       setLoading(false);
     };
@@ -34,6 +29,7 @@ const InventoryReport: React.FC = () => {
   // --- Calculations ---
   
   // Product Dimension Stats
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const productStats = inventory.reduce((acc: any, batch: any) => {
       if (!acc[batch.skuId]) {
           acc[batch.skuId] = {
@@ -51,6 +47,7 @@ const InventoryReport: React.FC = () => {
   const productData = Object.values(productStats);
 
   // Warehouse Dimension Stats
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const warehouseStats = inventory.reduce((acc: any, batch: any) => {
       if (!acc[batch.warehouseCode]) {
           acc[batch.warehouseCode] = {
@@ -115,6 +112,7 @@ const InventoryReport: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={8}>
           <Card>
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             <Statistic title="总库存货值" value={productData.reduce((sum: number, p: any) => sum + p.totalValue, 0)} precision={2} prefix="¥" />
           </Card>
         </Col>

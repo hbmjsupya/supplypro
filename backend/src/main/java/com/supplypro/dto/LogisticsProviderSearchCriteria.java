@@ -10,4 +10,5 @@ public class LogisticsProviderSearchCriteria {
     private LogisticsProvider.SettlementType settlementType;
     private Integer settlementPeriod; // Converted from Frontend Enum/String if needed, or pass directly
     private Long purchaserId;
+    private String status; // ACTIVE, INACTIVE
 }

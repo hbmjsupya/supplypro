@@ -111,7 +111,7 @@ public class LogisticsProviderFileService {
             file.setUploadTime(LocalDateTime.now());
             file.setUploader("system");
             file.setDescription(fileDto.getDescription());
-            file.setGroupId(fileDto.getGroupId());
+            file.setGroupId(fileDto.getGroupId() != null ? fileDto.getGroupId() : UUID.randomUUID().toString());
             file.setVersion(1);
             file.setIsLatest(true);
             file.setIsDeleted(false);

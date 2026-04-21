@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Table, Tag, Card, Statistic, Row, Col, Button, Modal, Form, InputNumber, Input, message } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Form, Input, Button, Card, Table, Tag, message, Modal, InputNumber } from 'antd';
 import request from '../../utils/request';
 
 interface PrepaymentLog {
@@ -23,7 +23,7 @@ const SupplierPrepaymentLog: React.FC<Props> = ({ supplierId }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
       const res = await request.get(`/suppliers/${supplierId}/prepayment/logs`);
@@ -33,13 +33,13 @@ const SupplierPrepaymentLog: React.FC<Props> = ({ supplierId }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supplierId]);
 
   useEffect(() => {
     if (supplierId) {
       fetchLogs();
     }
-  }, [supplierId]);
+  }, [supplierId, fetchLogs]);
 
   const handleCharge = async () => {
     try {

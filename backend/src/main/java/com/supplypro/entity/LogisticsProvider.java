@@ -13,6 +13,21 @@ public class LogisticsProvider {
     private Long id;
 
     private String name;
+    
+    @Column(name = "short_name")
+    private String shortName;
+    
+    @Column(unique = true)
+    private String code;
+    
+    private String website;
+    
+    @Column(name = "service_scope", columnDefinition = "TEXT")
+    private String serviceScope;
+    
+    @Column(name = "business_type")
+    private String businessType;
+    
     private String contactPerson;
     private String contactPhone;
     private String status;
@@ -48,6 +63,6 @@ public class LogisticsProvider {
     private User purchaser;
 
     public enum SettlementType {
-        CASH, PREPAYMENT, PERIOD
+        CASH, PREPAYMENT, PERIOD, FISHERMAN
     }
 }

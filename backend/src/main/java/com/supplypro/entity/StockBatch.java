@@ -1,5 +1,6 @@
 package com.supplypro.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import javax.persistence.*;
 import java.math.BigDecimal;
@@ -18,12 +19,22 @@ public class StockBatch {
     private String batchNo;
 
     @ManyToOne
+    @JoinColumn(name = "sku_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private Sku sku;
+
+    @ManyToOne
     @JoinColumn(name = "product_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Product product;
 
     @ManyToOne
     @JoinColumn(name = "warehouse_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Warehouse warehouse;
+
+    @Column(name = "purchase_order_id")
+    private Long purchaseOrderId;
 
     @Column(name = "quantity", nullable = false)
     private Integer quantity;

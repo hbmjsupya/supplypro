@@ -13,64 +13,98 @@ interface Option {
   loading?: boolean;
 }
 
-const categoryOptions: Option[] = [
-  {
-    value: 'office',
-    label: '办公用品',
-    children: [
-      {
-        value: 'writing',
-        label: '书写工具',
-        children: [
-          {
-            value: 'pen',
-            label: '中性笔',
-            children: [
-              { value: '0.5mm', label: '0.5mm中性笔' },
-              { value: '0.7mm', label: '0.7mm中性笔' },
-            ],
-          },
-        ],
-      },
-      {
-        value: 'paper',
-        label: '纸张本册',
-        children: [
-          {
-              value: 'copy_paper',
-              label: '复印纸',
-              children: [
-                  { value: 'a4', label: 'A4复印纸' },
-                  { value: 'a3', label: 'A3复印纸' }
-              ]
-          }
-        ]
-      }
-    ],
-  },
-];
+interface Supplier {
+    id: string;
+    name: string;
+    status?: string;
+}
+
+interface Brand {
+    id: string;
+    name: string;
+    logo?: string;
+    icon?: string;
+}
+
+interface TaxCategory {
+    id: string;
+    categoryCode: string;
+    categoryName: string;
+    taxRate: number;
+}
+
+interface SpecItem {
+    key: number | string;
+    id?: string;
+    name: string;
+    skuCode?: string;
+    costPrice?: number;
+    supplier?: { value: string; label: string };
+}
+
+interface BackendSku {
+    id: string;
+    name: string;
+    skuCode: string;
+    costPrice: number;
+    supplier?: { id: string; name: string };
+}
+
+interface Product {
+    id: string;
+    name: string;
+    logisticsTemplate: string;
+    status: string;
+    taxRate: number;
+    taxCode: string;
+    brandId: string;
+    brandZhName: string;
+    brandLogo: string;
+    taxClass: string;
+    categoryCode: string;
+    categoryName: string;
+    skus: BackendSku[];
+}
+
+interface ProductFormValues {
+    productName: string;
+    defaultSupplier: string;
+    status: string;
+    logistics: string;
+    category: string[];
+    categoryVersion?: string;
+    brandObj?: { value: string; label: string };
+    taxRate: number;
+    taxClass?: { label: string };
+}
+
+interface SpecFormValues {
+    baseName?: string;
+    level1Values?: string[];
+    level2Values?: string[];
+}
 
 const ProductAdd: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [form] = Form.useForm();
 
-  const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [brands, setBrands] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
 
   // 新增规格 Modal 相关状态
   const [isSpecModalVisible, setIsSpecModalVisible] = useState(false);
-  const [specForm] = Form.useForm();
+  const [specForm] = Form.useForm<SpecFormValues>();
   const [hasLevel2, setHasLevel2] = useState(false);
   
   // Mock specs data
-  const [specs, setSpecs] = useState<any[]>([]);
+  const [specs, setSpecs] = useState<SpecItem[]>([]);
 
   // Category State
   const [categoryOptions, setCategoryOptions] = useState<Option[]>([]);
   const [selectedCategoryName, setSelectedCategoryName] = useState<string>('');
   
-  const onCategoryChange = (value: any, selectedOptions: any[]) => {
+  const onCategoryChange = (_: unknown, selectedOptions: Option[]) => {
       if (selectedOptions && selectedOptions.length > 0) {
           const names = selectedOptions.map(o => o.label).join('/');
           setSelectedCategoryName(names);
@@ -78,7 +112,7 @@ const ProductAdd: React.FC = () => {
   };
   
   // Tax State
-  const [taxOptions, setTaxOptions] = useState<any[]>([]);
+  const [taxOptions, setTaxOptions] = useState<TaxCategory[]>([]);
   const [taxLoading, setTaxLoading] = useState(false);
 
   // Brand Search State
@@ -87,14 +121,14 @@ const ProductAdd: React.FC = () => {
   // API for Categories (New Product Categories API)
   const fetchCategories = async (level: number, parentId?: string): Promise<Option[]> => {
       try {
-          const params: any = { level };
+          const params: Record<string, string | number> = { level };
           if (parentId) params.parentId = parentId;
           
-          const res: any = await request.get('/product-categories', { params });
+          const res = await request.get('/product-categories', { params });
           // Backend returns List<ProductCategory>
           const list = Array.isArray(res) ? res : [];
           
-          return list.map((item: any) => ({
+          return list.map((item: { categoryId: string; name: string; level: number }) => ({
               value: item.categoryId,
               label: item.name,
               isLeaf: item.level === 4,
@@ -111,13 +145,13 @@ const ProductAdd: React.FC = () => {
   const fetchSuppliers = async (keyword: string = '') => {
       setSupplierLoading(true);
       try {
-          const res: any = await request.get('/suppliers', { 
+          const res = await request.get('/suppliers', { 
               params: { 
                   name: keyword, 
                   status: 'ACTIVE', 
                   size: 50 
               } 
-          });
+          }) as { content: Supplier[] };
           setSuppliers(res.content || []); // Use res.content for Page
       } catch (err) {
           console.error('Failed to fetch suppliers', err);
@@ -138,7 +172,7 @@ const ProductAdd: React.FC = () => {
       const fetchProductDetail = async () => {
         // setLoading(true); // We don't have a global loading state for the whole page, but we can use generic loading if available or just proceed
         try {
-          const res: any = await request.get(`/products/${id}`);
+          const res = await request.get(`/products/${id}`) as Product;
           const product = res;
           
           form.setFieldsValue({
@@ -156,14 +190,14 @@ const ProductAdd: React.FC = () => {
           // Restore Category
           if (product.categoryCode) {
              try {
-                const pathRes: any = await request.get(`/product-categories/${product.categoryCode}/path`);
+                const pathRes = await request.get(`/product-categories/${product.categoryCode}/path`) as { categoryId: string; name: string }[];
                 if (Array.isArray(pathRes) && pathRes.length > 0) {
                     // Construct the options tree from the path
                     // pathRes is [Root, Level2, Level3, Leaf]
                     // We need to merge this into categoryOptions or build a structure
                     
                     // Helper to recursively build tree from path list
-                    const buildTree = (list: any[], index: number): Option[] => {
+                    const buildTree = (list: { categoryId: string; name: string }[], index: number): Option[] => {
                         if (index >= list.length) return [];
                         
                         const current = list[index];
@@ -201,7 +235,7 @@ const ProductAdd: React.FC = () => {
                     setCategoryOptions(pathTree);
                     
                     // Set Form Value
-                    const pathIds = pathRes.map((c: any) => c.categoryId);
+                    const pathIds = pathRes.map((c) => c.categoryId);
                     form.setFieldsValue({ category: pathIds });
                     
                     // Set Name
@@ -223,7 +257,7 @@ const ProductAdd: React.FC = () => {
 
           // Restore Specs
           if (product.skus && product.skus.length > 0) {
-             const loadedSpecs = product.skus.map((sku: any) => ({
+             const loadedSpecs = product.skus.map((sku) => ({
                  key: sku.id || Date.now() + Math.random(),
                  id: sku.id,
                  name: sku.name,
@@ -245,7 +279,7 @@ const ProductAdd: React.FC = () => {
     }
   }, [id, form]);
 
-  const onCategoryLoadData = (selectedOptions: any[]) => {
+  const onCategoryLoadData = (selectedOptions: Option[]) => {
       const targetOption = selectedOptions[selectedOptions.length - 1];
       targetOption.loading = true;
 
@@ -265,7 +299,7 @@ const ProductAdd: React.FC = () => {
       setTaxLoading(true);
       try {
           // Use new Tax Category API
-          const res: any = await request.get('/tax-categories', { params: { keyword: value } });
+          const res = await request.get('/tax-categories', { params: { keyword: value } }) as TaxCategory[];
           setTaxOptions(res || []);
       } catch (error) {
           console.error('Failed to search tax categories', error);
@@ -280,7 +314,7 @@ const ProductAdd: React.FC = () => {
       // The previous implementation used "keyword" but BrandController uses "name".
       setBrandLoading(true);
       try {
-          const res: any = await request.get('/brands', { params: { name: value, status: 'ENABLED', size: 50 } });
+          const res = await request.get('/brands', { params: { name: value, status: 'ENABLED', size: 50 } }) as { records: Brand[] };
           setBrands(res.records || []);
       } catch (error) {
           console.error('Failed to search brands', error);
@@ -289,16 +323,17 @@ const ProductAdd: React.FC = () => {
       }
   };
 
-  const [selectedBrand, setSelectedBrand] = useState<any>(null);
+  const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const targetStatusRef = useRef('PENDING_SELECTION');
 
-  const onBrandSelect = (value: any, option: any) => {
+  const onBrandSelect = (_: unknown, option: { brandData: Brand }) => {
       setSelectedBrand(option.brandData);
   };
 
   // Tax Auto-fill Handler
-  const handleTaxChange = (value: any, option: any) => {
-        if (value && option) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleTaxChange = (_: unknown, option: any) => {
+        if (option) {
             form.setFieldsValue({ 
                 taxRate: option.rate,
                 // taxCode: option.code 
@@ -315,17 +350,23 @@ const ProductAdd: React.FC = () => {
           await request.post('/tax-categories/sync');
           message.success('税务数据已刷新');
           setTaxOptions([]); // Clear options to force re-search
-      } catch (error) {
+      } catch {
           message.error('刷新失败');
       } finally {
           setTaxLoading(false);
       }
   };
 
-  const onFinish = async (values: any) => {
+  const onFinish = async (values: ProductFormValues) => {
     // 验证规格
     if (specs.length === 0) {
         message.error('请至少添加一个商品规格');
+        return;
+    }
+
+    // 校验规格必填项
+    if (specs.some(item => !item.name || item.costPrice === null || item.costPrice === undefined)) {
+        message.error('请完善规格信息（名称、成本价）');
         return;
     }
 
@@ -382,7 +423,7 @@ const ProductAdd: React.FC = () => {
   };
 
   // 处理规格列表字段变更
-  const handleSpecChange = (key: number, field: string, value: any) => {
+  const handleSpecChange = (key: number | string, field: string, value: string | number | null | { value: string; label: string }) => {
     const newSpecs = specs.map(item => {
       if (item.key === key) {
         return { ...item, [field]: value };
@@ -396,9 +437,9 @@ const ProductAdd: React.FC = () => {
   const handleGenerateSpecs = async () => {
      try {
         const values = await specForm.validateFields();
-        const { baseName, level1Name, level1Values, level2Name, level2Values } = values;
+        const { baseName, level1Values, level2Values } = values;
         
-        let newSpecs: any[] = [];
+        const newSpecs: SpecItem[] = [];
         
         const l1Vals = level1Values || [];
         const l2Vals = (hasLevel2 && level2Values) ? level2Values : [];
@@ -446,7 +487,7 @@ const ProductAdd: React.FC = () => {
      }
   };
 
-  const handleDeleteSpec = (key: number) => {
+  const handleDeleteSpec = (key: number | string) => {
      setSpecs(specs.filter(item => item.key !== key));
   };
 
@@ -511,12 +552,12 @@ const ProductAdd: React.FC = () => {
                             validator: async (_, value) => {
                                 if (!value) return Promise.resolve();
                                 try {
-                                    const params: any = { name: value };
+                                    const params: Record<string, string | number> = { name: value };
                                     // Ensure excludeId is a valid number
                                     if (id && !isNaN(Number(id))) {
                                         params.excludeId = id;
                                     }
-                                    const res: any = await request.get('/products/validation/name', { params });
+                                    const res = await request.get('/products/validation/name', { params }) as { exists: boolean };
                                     if (res && res.exists) {
                                         return Promise.reject(new Error('商品名称已存在，请使用其他名称'));
                                     }

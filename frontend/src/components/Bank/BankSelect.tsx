@@ -53,7 +53,7 @@ const BankSelect: React.FC<BankSelectProps> = ({
 
   // Debounce implementation
   const debounceFetcher = useMemo(() => {
-    let timeoutId: any;
+    let timeoutId: ReturnType<typeof setTimeout>;
     return (value: string) => {
       if (timeoutId) {
         clearTimeout(timeoutId);
@@ -81,7 +81,7 @@ const BankSelect: React.FC<BankSelectProps> = ({
          }
       }).catch(err => console.error("Failed to fetch selected bank", err));
     }
-  }, [value]); // Depend on value. Note: options dependency might cause loop if not careful.
+  }, [value, options]); // Depend on value. Note: options dependency might cause loop if not careful.
 
   // Handle selection
   const handleChange = (val: number) => {

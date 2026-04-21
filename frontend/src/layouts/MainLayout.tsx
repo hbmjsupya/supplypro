@@ -12,7 +12,8 @@ import {
   DownOutlined,
   DownloadOutlined,
   UploadOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  RollbackOutlined
 } from '@ant-design/icons';
 import { logout, getCurrentUser } from '../services/authService';
 
@@ -47,6 +48,7 @@ const MainLayout: React.FC = () => {
         { key: '/supply-chain/platform-confirm', label: '平台订单采购确认', icon: <FileTextOutlined /> },
         { key: '/supply-chain/purchase-order', label: '采购单列表', icon: <FileTextOutlined /> },
         { key: '/supply-chain/price-adjustment', label: '采购调价单列表', icon: <AccountBookOutlined /> },
+        { key: '/supply-chain/refund-order', label: '退款单列表', icon: <RollbackOutlined /> },
         { key: '/supply-chain/settlement/pending', label: '待结算采购单列表', icon: <PayCircleOutlined /> },
         { key: '/supply-chain/settlement/delivery', label: '待结算配送单列表', icon: <PayCircleOutlined /> },
         { key: '/supply-chain/settlement/supplier', label: '供应商结算单列表', icon: <PayCircleOutlined /> },
@@ -59,8 +61,8 @@ const MainLayout: React.FC = () => {
       children: [
         { key: '/supply-chain/warehouse', label: '分仓管理', icon: <AppstoreOutlined /> },
         { key: '/supply-chain/inbound', label: '采购入库', icon: <DownloadOutlined /> },
-        { key: '/supply-chain/outbound', label: '库存发货', icon: <UploadOutlined /> },
-        { key: '/supply-chain/stock-flow', label: '出入库流水', icon: <FileTextOutlined /> },
+        { key: '/supply-chain/outbound', label: '仓库出库', icon: <UploadOutlined /> },
+        { key: '/supply-chain/stock-flow', label: '仓库商品变动记录', icon: <FileTextOutlined /> },
         { key: '/supply-chain/inventory-report', label: '库存报表', icon: <BarChartOutlined /> },
       ]
     }
@@ -80,6 +82,7 @@ const MainLayout: React.FC = () => {
       if (pathname.startsWith('/supply-chain/bundle')) return '/supply-chain/bundle';
       if (pathname.startsWith('/supply-chain/purchase-order')) return '/supply-chain/purchase-order';
       if (pathname.startsWith('/supply-chain/price-adjustment')) return '/supply-chain/price-adjustment';
+      if (pathname.startsWith('/supply-chain/refund-order')) return '/supply-chain/refund-order';
       if (pathname.startsWith('/supply-chain/settlement/supplier')) return '/supply-chain/settlement/supplier';
       if (pathname.startsWith('/supply-chain/settlement/pending')) return '/supply-chain/settlement/pending';
       if (pathname.startsWith('/supply-chain/settlement/delivery')) return '/supply-chain/settlement/delivery';
@@ -99,7 +102,20 @@ const MainLayout: React.FC = () => {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '0 24px', boxShadow: '0 1px 4px rgba(0,21,41,0.08)', zIndex: 1 }}>
+      {/* 顶部导航栏 - 固定定位 */}
+      <Header style={{ 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        zIndex: 100,
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between', 
+        background: '#fff', 
+        padding: '0 24px', 
+        boxShadow: '0 1px 4px rgba(0,21,41,0.08)' 
+      }}>
         <div className="logo" style={{ fontSize: '18px', fontWeight: 'bold', color: '#1677ff' }}>
           SupplyPro Supply Chain
         </div>
@@ -114,8 +130,44 @@ const MainLayout: React.FC = () => {
            </Dropdown>
         </div>
       </Header>
-      <Layout>
-        <Sider width={250} collapsible collapsed={collapsed} onCollapse={(value) => setCollapsed(value)} theme="light" style={{ boxShadow: '2px 0 8px 0 rgba(29,35,41,0.05)' }}>
+      
+      <Layout style={{ marginTop: 64 }}>
+        {/* 左侧菜单栏 - 固定定位 */}
+        <Sider 
+          width={250} 
+          collapsible 
+          collapsed={collapsed} 
+          onCollapse={(value) => setCollapsed(value)} 
+          theme="light" 
+          className="custom-scrollbar-hidden"
+          style={{ 
+            position: 'fixed',
+            left: 0,
+            top: 64,
+            bottom: 0,
+            overflow: 'auto',
+            boxShadow: '2px 0 8px 0 rgba(29,35,41,0.05)',
+            zIndex: 99,
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+          }}
+        >
+          <style>{`
+            .custom-scrollbar-hidden::-webkit-scrollbar {
+              display: none;
+            }
+            .custom-scrollbar-hidden {
+              -ms-overflow-style: none;
+              scrollbar-width: none;
+            }
+            .custom-scrollbar-hidden .ant-menu {
+              scrollbar-width: none;
+              -ms-overflow-style: none;
+            }
+            .custom-scrollbar-hidden .ant-menu::-webkit-scrollbar {
+              display: none;
+            }
+          `}</style>
           <Menu
             mode="inline"
             defaultOpenKeys={openKeys}
@@ -125,7 +177,14 @@ const MainLayout: React.FC = () => {
             onClick={({ key }) => navigate(key)}
           />
         </Sider>
-        <Layout style={{ padding: '0 24px 24px' }}>
+        
+        {/* 主内容区域 - 独立滚动 */}
+        <Layout style={{ 
+          marginLeft: collapsed ? 80 : 250, 
+          transition: 'margin-left 0.2s',
+          padding: '0 24px 24px',
+          minHeight: 'calc(100vh - 64px)'
+        }}>
           <div style={{ margin: '16px 0' }}>
              <Tabs
                type="editable-card"

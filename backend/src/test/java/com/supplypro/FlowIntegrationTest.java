@@ -97,8 +97,8 @@ public class FlowIntegrationTest {
 
         ResponseEntity<Map<String, Object>> poResp = purchaseOrderController.create(po);
         Assertions.assertEquals(200, poResp.getBody().get("code"));
-        PurchaseOrder savedPO = (PurchaseOrder) poResp.getBody().get("data");
-        Long poId = savedPO.getId();
+        Map<String, Object> savedPOMap = (Map<String, Object>) poResp.getBody().get("data");
+        Long poId = ((Number) savedPOMap.get("id")).longValue();
         
         System.out.println(">>> PO Created: " + poId);
 
@@ -115,7 +115,7 @@ public class FlowIntegrationTest {
         System.out.println(">>> Inbound Created: " + inboundId);
 
         // 2.3 Confirm Inbound (Triggers Stock & Flow)
-        ResponseEntity<Map<String, Object>> confirmResp = inboundOrderController.confirm(inboundId);
+        ResponseEntity<Map<String, Object>> confirmResp = inboundOrderController.confirm(inboundId, new org.springframework.mock.web.MockHttpServletRequest());
         Assertions.assertEquals(200, confirmResp.getBody().get("code"));
         
         // Verify Stock

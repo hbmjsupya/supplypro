@@ -1,6 +1,5 @@
 package com.supplypro.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import org.hibernate.annotations.Formula;
 import org.springframework.data.annotation.CreatedBy;
@@ -15,10 +14,13 @@ import java.util.HashSet;
 import java.util.Set;
 import java.io.Serializable;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 @Data
 @Entity
 @Table(name = "brands")
 @EntityListeners(AuditingEntityListener.class)
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Brand implements Serializable {
     private static final long serialVersionUID = 1L;
 

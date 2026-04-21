@@ -1,9 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Table, Space, Select, InputNumber, message, Breadcrumb, Tooltip } from 'antd';
-import { MinusCircleOutlined, PlusOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Table, Space, Select, InputNumber, message, Breadcrumb } from 'antd';
+import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import PageDoc from '../../components/PageDoc';
 import request from '../../utils/request';
+
+interface Sku {
+    skuCode: string;
+    name?: string;
+    costPrice?: number;
+    supplier?: { name: string };
+}
+
+interface Product {
+    id: number;
+    name: string;
+    skuCode: string;
+    skus?: Sku[];
+    status?: string;
+    bundleItems?: {
+        id: number;
+        childProductId: number;
+        quantity: number;
+        childProduct?: Product;
+    }[];
+}
+
+interface ProductOption {
+    label: string;
+    value: number;
+    product: Product;
+}
 
 interface SubProduct {
     key: number;
@@ -15,7 +42,7 @@ interface SubProduct {
     cost?: number;
     count?: number;
     total?: number;
-    skuOptions?: any[]; // Available SKUs for this product
+    skuOptions?: Sku[]; // Available SKUs for this product
 }
 
 const BundleAdd: React.FC = () => {
@@ -25,13 +52,13 @@ const BundleAdd: React.FC = () => {
     const [subProducts, setSubProducts] = useState<SubProduct[]>([
         { key: Date.now(), count: 1 }
     ]);
-    const [productOptions, setProductOptions] = useState<{ label: string, value: number, product: any }[]>([]);
+    const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
     const [loading, setLoading] = useState(false);
 
     const fetchProducts = async (keyword: string = '') => {
         setLoading(true);
         try {
-            const res: any = await request.get('/products', {
+            const res = await request.get<{ records: Product[] }>('/products', {
                 params: {
                     status: ['ON_SHELF', 'SELECTED'],
                     keyword,
@@ -41,31 +68,31 @@ const BundleAdd: React.FC = () => {
                 paramsSerializer: params => {
                     const searchParams = new URLSearchParams();
                     Object.keys(params).forEach(key => {
-                        const val = params[key];
+                        const val = (params as Record<string, unknown>)[key];
                         if (Array.isArray(val)) {
-                            val.forEach(v => searchParams.append(key, v));
+                            val.forEach((v: unknown) => searchParams.append(key, String(v)));
                         } else if (val !== undefined && val !== null) {
-                            searchParams.append(key, val);
+                            searchParams.append(key, String(val));
                         }
                     });
                     return searchParams.toString();
                 }
-            });
+            }) as unknown as { records: Product[] };
             
             if (res && res.records) {
-                const options = res.records.map((p: any) => ({
+                const options = res.records.map((p: Product) => ({
                     label: `${p.name} (${p.skuCode})`,
                     value: p.id,
                     product: p
                 }));
                 setProductOptions(options);
             }
-        } catch (e: any) {
-                console.error('Fetch products failed', e);
-                if (e.response || e.request) {
-                   message.error('获取商品列表失败，请稍后重试');
-                }
-            } finally {
+        } catch (e) {
+            console.error('Fetch products failed', e);
+            if ((e as { response?: unknown; request?: unknown }).response || (e as { response?: unknown; request?: unknown }).request) {
+                message.error('获取商品列表失败，请稍后重试');
+            }
+        } finally {
             setLoading(false);
         }
     };
@@ -78,7 +105,8 @@ const BundleAdd: React.FC = () => {
         if (id) {
             const fetchDetail = async () => {
                 try {
-                    const p: any = await request.get(`/products/${id}`);
+                    const res = await request.get<Product>(`/products/${id}`);
+                    const p = res as unknown as Product;
                     if (p) {
                         form.setFieldsValue({
                             bundleName: p.name,
@@ -87,12 +115,12 @@ const BundleAdd: React.FC = () => {
                         
                         if (p.bundleItems) {
                             const items = p.bundleItems.map((item: any) => {
-                                const child = item.childProduct || {};
+                                const child = item.childProduct || { name: '', skuCode: '' } as Product;
                                 const skus = child.skus || [];
                                 // Find specific SKU if we were storing childSkuId, but currently we just default to first or matching logic
                                 // Since we don't store childSkuId in ProductBundle yet (based on entity), we assume first or logic needs enhancement.
                                 // But for display, we show what we have.
-                                const firstSku = skus.length > 0 ? skus[0] : {};
+                                const firstSku = skus.length > 0 ? skus[0] : { skuCode: '' } as Sku;
                                 
                                 return {
                                     key: item.id || (Date.now() + Math.random()),
@@ -111,13 +139,13 @@ const BundleAdd: React.FC = () => {
                             
                             // Pre-fill options
                             const existingOptions = p.bundleItems.map((item: any) => ({
-                                label: `${item.childProduct.name} (${item.childProduct.skuCode})`,
+                                label: `${item.childProduct?.name} (${item.childProduct?.skuCode})`,
                                 value: item.childProductId,
-                                product: item.childProduct
+                                product: item.childProduct as Product
                             }));
                             setProductOptions(prev => {
                                 const newOptions = [...prev];
-                                existingOptions.forEach((opt: any) => {
+                                existingOptions.forEach((opt: ProductOption) => {
                                     if (!newOptions.find(o => o.value === opt.value)) {
                                         newOptions.push(opt);
                                     }
@@ -126,7 +154,7 @@ const BundleAdd: React.FC = () => {
                             });
                         }
                     }
-                } catch (e) {
+                } catch {
                     message.error('获取详情失败');
                 }
             };
@@ -142,10 +170,10 @@ const BundleAdd: React.FC = () => {
         setSubProducts(subProducts.filter(item => item.key !== key));
     };
 
-    const handleUpdateSubProduct = (key: number, field: string, value: any) => {
+    const handleUpdateSubProduct = (key: number, field: string, value: number | string | null) => {
         const newSubProducts = subProducts.map(item => {
             if (item.key === key) {
-                let updatedItem = { ...item, [field]: value };
+                const updatedItem = { ...item, [field]: value };
                 
                 if (field === 'productId') {
                     const selectedOption = productOptions.find(opt => opt.value === value);
@@ -173,7 +201,7 @@ const BundleAdd: React.FC = () => {
 
                 if (field === 'skuCode') {
                     // Find SKU in options
-                    const sku = item.skuOptions?.find((s: any) => s.skuCode === value);
+                    const sku = item.skuOptions?.find((s: Sku) => s.skuCode === value);
                     if (sku) {
                         updatedItem.spec = sku.name || sku.skuCode;
                         updatedItem.skuCode = sku.skuCode;
@@ -192,7 +220,7 @@ const BundleAdd: React.FC = () => {
         setSubProducts(newSubProducts);
     };
 
-    const onFinish = async (values: any) => {
+    const onFinish = async (values: { bundleName: string }) => {
         // Strict validation: count must be > 0
         const invalidCount = subProducts.some(item => !item.count || item.count <= 0);
         if (invalidCount) {
@@ -218,16 +246,15 @@ const BundleAdd: React.FC = () => {
         };
 
         try {
-            const url = id ? `/products/${id}` : '/products';
-            const method = id ? 'put' : 'post';
-
-            // request[method] call
-            // @ts-ignore
-            await request[method](url, payload);
+            if (id) {
+                await request.put(`/products/${id}`, payload);
+            } else {
+                await request.post('/products', payload);
+            }
             
             message.success('组合商品保存成功');
             navigate('/supply-chain/bundle');
-        } catch (e) {
+        } catch {
             // Error handled by interceptor usually
             // message.error('网络错误，请稍后重试');
         }
@@ -267,7 +294,7 @@ const BundleAdd: React.FC = () => {
                             onChange={(val) => handleUpdateSubProduct(record.key, 'skuCode', val)}
                             placeholder="请选择规格"
                         >
-                            {record.skuOptions.map((sku: any) => (
+                            {record.skuOptions.map((sku) => (
                                 <Select.Option key={sku.skuCode} value={sku.skuCode}>
                                     {sku.name || sku.skuCode}
                                 </Select.Option>
@@ -323,7 +350,7 @@ const BundleAdd: React.FC = () => {
         {
             title: '操作',
             key: 'action',
-            render: (_: any, record: SubProduct) => (
+            render: (_: unknown, record: SubProduct) => (
                 <MinusCircleOutlined onClick={() => handleRemoveSubProduct(record.key)} />
             )
         }

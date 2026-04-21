@@ -53,10 +53,13 @@ export interface DetailData {
 export interface PrepaymentLogItem {
   key: string;
   id: string;
+  numericId?: number;
   type: 'Income' | 'Expense';
   approvedAmount: number;
   actualAmount: number;
   date: string;
   status: 'Pending' | 'Approved' | 'Rejected';
   note?: string;
+  supplierName?: string;
+  ownerType?: string;
 }

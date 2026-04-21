@@ -16,6 +16,7 @@ describe('ProductPoolModal', () => {
     const mockOnCancel = vi.fn();
 
     it('should fetch products with status=ON_SHELF when opened', async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (productService.getAll as any).mockResolvedValue({
             content: [
                 { id: 1, name: 'Product 1', status: 'ON_SHELF', skus: [{ id: 101, skuCode: 'SKU001', name: 'Spec 1', costPrice: 100 }] },
@@ -39,6 +40,7 @@ describe('ProductPoolModal', () => {
     });
 
     it('should call onOk with selected items', async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (productService.getAll as any).mockResolvedValue({
             content: [
                 { id: 1, name: 'Product 1', status: 'ON_SHELF', skus: [{ id: 101, skuCode: 'SKU001', name: 'Spec 1', costPrice: 100 }] }
@@ -67,6 +69,7 @@ describe('ProductPoolModal', () => {
     });
 
     it('should fetch products with supplierId when provided', async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (productService.getAll as any).mockResolvedValue({
             content: [],
             total: 0

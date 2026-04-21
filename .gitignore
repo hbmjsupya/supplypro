@@ -28,6 +28,85 @@ tools/apache-maven-*/
 *.zip
 .trae/
 
+# Software installations (JDK, Maven etc.)
+soft/
+
 # Backup
 _backup_src/
 backups/
+
+# Uploads directory
+uploads/
+
+# Local environment config (contains dev credentials)
+backend/src/main/resources/application-local.yml
+
+# Maven settings with potential credentials
+backend/settings.xml
+
+# Temporary fix scripts
+backend/FixRevokedSettlements.java
+
+# Root-level temp files
+*.md.bak
+
+# Compiled class files
+*.class
+
+# Backend data snapshots
+backend/snapshots/
+
+# Backend development scripts
+backend/scripts/
+backend/load_test_login.py
+backend/run_resilience_tests.sh
+backend/no_delivery.txt
+
+# Cypress test screenshots and videos
+frontend/cypress/screenshots/
+frontend/cypress/videos/
+
+# Test scripts and results
+test_*.py
+test_*.txt
+test_results/
+tests/
+verify_*.py
+tail_xml.txt
+
+# Template files (binary)
+模版/
+
+# Root-level development reports (not needed for project runtime)
+API_DOCUMENTATION.md
+AUTH_DIAGNOSIS_REPORT.md
+CHANGE_LOG.md
+CLEANUP_REPORT.md
+DATA_RECOVERY_REPORT.md
+DATA_RESET_README.md
+DEPLOYMENT_VERIFICATION_PLAN.md
+FIX_REPORT_*.md
+FRONTEND_SYNC_REPORT.md
+FRONTEND_VALIDATION_TROUBLESHOOTING.md
+I18N_REPORT_*.md
+MAVEN_OPTIMIZATION.md
+PO_INBOUND_*.md
+RECONSTRUCTION_PLAN.md
+REPAIR_REPORT*.md
+ROUTE_DOC.md
+ROUTE_REPORT.md
+SHIP_MODAL_DIFF.md
+SKILLS.md
+STATUS_MAPPING.md
+TEST_REPORT*.md
+TEST_VERIFICATION_REPORT.md
+TROUBLESHOOTING_FRONTEND.md
+VERIFICATION_REPORT.md
+troubleshooting_log_*.md
+1~
+
+# Generated checksum files
+.routes.checksum
+
+# Specs directory (development specs, not runtime)
+specs/

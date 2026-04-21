@@ -1,0 +1,3 @@
+-- default_supplier_id column already exists in V1.0
+-- ALTER TABLE products ADD COLUMN default_supplier_id BIGINT COMMENT 'Default Supplier ID';
+-- No Foreign Key Constraint added as per requirement

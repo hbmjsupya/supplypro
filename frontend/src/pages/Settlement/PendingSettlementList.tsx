@@ -1,401 +1,531 @@
-import React from 'react';
-import { Table, Button, Input, Select, Space, Tag, Form, Row, Col, Modal, message, Tooltip, InputNumber } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Table, Button, Card, Tag, message, Modal, Form, Input, Select, Space, Tooltip, Dropdown, Menu, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { EyeOutlined, PayCircleOutlined, ExportOutlined } from '@ant-design/icons';
+import type { MenuProps } from 'antd';
+import { DownOutlined, SyncOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { PendingDeliverySettlement } from '../../types/settlement';
+import { getPendingPurchaseSettlements, getSupplierAccounts, BankAccount, createPurchaseSettlementsFromPending } from '../../services/settlementService';
+import { getStatusText, getStatusColor } from '../../utils/statusMapping';
 import PageDoc from '../../components/PageDoc';
-import { useExport } from '../../utils/exportUtils';
+import SearchFormLayout from '../../components/SearchFormLayout';
+
+const { Text } = Typography;
+
+const getBizTypeInfo = (type: string) => {
+    switch (type) {
+      case 'PLATFORM':
+      case 'OrderPurchase':
+        return { label: '平台单', color: 'blue' };
+      case 'REPLENISHMENT':
+      case 'ReplenishPurchase':
+        return { label: '补货单', color: 'orange' };
+      case 'INBOUND':
+      case 'ProductInbound':
+        return { label: '入库单', color: 'purple' };
+      case 'COST_ADJUSTMENT':
+        return { label: '调价单', color: 'green' };
+      case 'REFUND':
+        return { label: '退款单', color: 'red' };
+      default:
+        return { label: type || '其他', color: 'default' };
+    }
+  };
 
 interface PendingSettlementType {
-  key: string;
-  poNo: string;
-  changeType: 'OrderPurchase' | 'Replenishment' | 'Refund' | 'PriceAdjust';
-  bizNo: string;
-  spec: string;
-  changeTime: string;
-  amount: number;
-  supplier: string;
-  settlementType: 'Cash' | 'Prepayment';
-  cycle: string;
+    id: string;
+    bizType: string;
+    bizNo: string;
+    purchaseOrderNo: string;
+    supplierId: string;
+    supplierName: string;
+    amount: number;
+    settlementType: string;
+    settlementPeriod: number;
+    status: string;
+    [key: string]: any;
 }
-
-const mockData: PendingSettlementType[] = [
-  {
-    key: '1',
-    poNo: 'C231027001001',
-    changeType: 'OrderPurchase',
-    bizNo: '-',
-    spec: '晨光A4打印纸 70g',
-    changeTime: '2023-10-27 10:00',
-    amount: 1800.00,
-    supplier: '晨光文具',
-    settlementType: 'Cash',
-    cycle: '月结',
-  },
-  {
-    key: '2',
-    poNo: 'C231027001001',
-    changeType: 'Refund',
-    bizNo: 'REF20231029001',
-    spec: '晨光A4打印纸 70g',
-    changeTime: '2023-10-29 14:00',
-    amount: -180.00,
-    supplier: '晨光文具',
-    settlementType: 'Cash',
-    cycle: '月结',
-  },
-  {
-    key: '3',
-    poNo: 'C231027002005',
-    changeType: 'Replenishment',
-    bizNo: 'REP20231030005',
-    spec: '得力黑色中性笔 0.5mm',
-    changeTime: '2023-10-30 09:30',
-    amount: 500.00,
-    supplier: '得力集团',
-    settlementType: 'Cash',
-    cycle: '周结',
-  },
-  {
-    key: '4',
-    poNo: 'C231027003008',
-    changeType: 'PriceAdjust',
-    bizNo: 'ADJ20231101002',
-    spec: 'HP打印机 M126a',
-    changeTime: '2023-11-01 11:15',
-    amount: -50.00,
-    supplier: '惠普中国',
-    settlementType: 'Prepayment',
-    cycle: '',
-  },
-  {
-    key: '5',
-    poNo: 'C231027004012',
-    changeType: 'OrderPurchase',
-    bizNo: '-',
-    spec: '齐心文件夹 A4蓝',
-    changeTime: '2023-11-02 14:20',
-    amount: 2000.00,
-    supplier: '齐心办公',
-    settlementType: 'Prepayment',
-    cycle: '',
-  },
-];
 
 const PendingSettlementList: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedRowKeys, setSelectedRowKeys] = React.useState<React.Key[]>([]);
-  const [selectedRows, setSelectedRows] = React.useState<PendingSettlementType[]>([]);
-  const [dataSource, setDataSource] = React.useState<PendingSettlementType[]>(mockData);
-  const [loading, setLoading] = React.useState(false);
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<PendingSettlementType[]>([]);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [filters, setFilters] = useState({ supplierName: '', purchaseOrderNo: '', status: '', bizType: '', settlementType: '', bizNo: '' });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
 
-  const handleSettle = () => {
-     Modal.confirm({
-        title: '确认发起结算?',
-        content: '将为选中的记录生成结算单',
-        onOk: () => {
-           navigate('/supply-chain/supplier-settlement');
-        }
-     });
-  };
+  // Bank Account Selection Modal State
+  const [bankModalVisible, setBankModalVisible] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [bankModalData, setBankModalData] = useState<any>(null);
+  const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
+  const [payeeAccounts, setPayeeAccounts] = useState<BankAccount[]>([]);
 
-  const { handleExport, exporting, progress } = useExport<PendingSettlementType>({
-    filenamePrefix: '待结算采购单列表',
-    fetchData: () => mockData,
-    columns: [
-        { title: '采购单号', dataIndex: 'poNo' },
-        { title: '变动类型', dataIndex: 'changeType', render: (val) => {
-            const map: Record<string, string> = {
-                'OrderPurchase': '订单采购',
-                'Replenishment': '补货采购',
-                'Refund': '供应商退款',
-                'PriceAdjust': '成本调价'
-            };
-            return map[val] || val;
-        }},
-        { title: '业务单号', dataIndex: 'bizNo' },
-        { title: '商品规格', dataIndex: 'spec' },
-        { title: '变动时间', dataIndex: 'changeTime' },
-        { title: '应结算金额', dataIndex: 'amount', render: (val) => val.toFixed(2) },
-        { title: '供应商名称', dataIndex: 'supplier' },
-        { title: '结算类型', dataIndex: 'settlementType', render: (val) => val === 'Prepayment' ? '预付' : '现付' },
-        { title: '结算周期', dataIndex: 'cycle', render: (val, record) => record.settlementType === 'Prepayment' ? '-' : val },
-    ]
-  });
-
-  const columns: ColumnsType<PendingSettlementType> = [
-    { title: '采购单号', dataIndex: 'poNo', key: 'poNo' },
-    { 
-       title: '变动类型', 
-       dataIndex: 'changeType', 
-       key: 'changeType',
-       render: (val) => {
-       const map: Record<string, string> = {
-          'OrderPurchase': '订单采购',
-          'Replenishment': '补货采购',
-          'Refund': '供应商退款',
-          'PriceAdjust': '成本调价'
-       };
-       return <Tag>{map[val] || val}</Tag>;
-    }
-    },
-    { title: '业务单号', dataIndex: 'bizNo', key: 'bizNo' },
-    { title: '商品规格', dataIndex: 'spec', key: 'spec' },
-    { title: '变动时间', dataIndex: 'changeTime', key: 'changeTime' },
-    { title: '应结算金额', dataIndex: 'amount', key: 'amount', render: (v) => <span style={{color: v>=0?'black':'red'}}>¥{v.toFixed(2)}</span> },
-    { title: '供应商名称', dataIndex: 'supplier', key: 'supplier' },
-    { 
-      title: '结算类型', 
-      dataIndex: 'settlementType', 
-      key: 'settlementType',
-      render: (val) => (
-         <Tag color={val === 'Prepayment' ? 'orange' : 'blue'}>
-            {val === 'Prepayment' ? '预付' : '现付'}
-         </Tag>
-      )
-    },
-    { 
-      title: '结算周期', 
-      dataIndex: 'cycle', 
-      key: 'cycle',
-      render: (val, record) => {
-         if (record.settlementType === 'Prepayment') {
-            return '-';
-         }
-         return val;
+  const loadData = async (page = pagination.current, size = pagination.pageSize, overrideFilters?: typeof filters) => {
+    setLoading(true);
+    try {
+      const currentFilters = overrideFilters || filters;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const params: any = {};
+      if (currentFilters.purchaseOrderNo) params.purchaseOrderNo = currentFilters.purchaseOrderNo;
+      if (currentFilters.supplierName) params.supplierName = currentFilters.supplierName;
+      if (currentFilters.status) params.status = currentFilters.status;
+      if (currentFilters.bizType) params.bizType = currentFilters.bizType;
+      if (currentFilters.settlementType) params.settlementType = currentFilters.settlementType;
+      if (currentFilters.bizNo) params.bizNo = currentFilters.bizNo;
+      params.page = page - 1;
+      params.size = size;
+      
+      const result: any = await getPendingPurchaseSettlements(params);
+      // 确保正确处理后端返回的数据格式
+      let records = [];
+      let total = 0;
+      if (result && Array.isArray(result)) {
+        // 后端返回的是数组
+        records = result;
+        total = result.length;
+      } else if (result && result.records) {
+        // 后端返回的是带有 records 和 total 字段的对象
+        records = result.records || [];
+        total = result.total || 0;
       }
-    },
-    {
-      title: '操作',
-      key: 'action',
-      render: (_, record) => (
-        <Space size="small">
-          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => navigate(`/supply-chain/purchase-order/detail/${record.key}`)}>采购单详情</Button>
-          <Button type="link" size="small" icon={<PayCircleOutlined />} onClick={handleSettle}>发起结算</Button>
-        </Space>
-      ),
-    },
-  ];
-
-  const [manualForm] = Form.useForm();
-  const [isManualModalOpen, setIsManualModalOpen] = React.useState(false);
-  const [payeeAccountMode, setPayeeAccountMode] = React.useState<'default' | 'select' | 'manual'>('manual');
-
-  // Mock System Accounts (Same as SupplierSettlementList)
-  const systemAccounts = [
-    { label: '主营账户 (工商银行 8888)', value: 'ICBC_8888', isDefault: true, bank: '中国工商银行', no: '88888888' },
-    { label: '副营账户 (招商银行 6666)', value: 'CMB_6666', isDefault: false, bank: '招商银行', no: '66666666' },
-  ];
-
-  const handleManualSettleSubmit = () => {
-     manualForm.validateFields().then(values => {
-        console.log('Manual Settlement:', values);
-        message.success('手动结算单已生成');
-        setIsManualModalOpen(false);
-        manualForm.resetFields();
-     });
+      setData(records);
+      setPagination(prev => ({ ...prev, current: page, pageSize: size, total }));
+    } catch (error) {
+      console.error('加载待结算采购单数据失败:', error);
+      setData([]);
+      setPagination(prev => ({ ...prev, total: 0 }));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleManualSettle = () => {
-     setIsManualModalOpen(true);
-     setPayeeAccountMode('manual');
-     // Reset with some defaults if needed, or clear
-     manualForm.resetFields();
-     manualForm.setFieldsValue({
-        amount: 0
-     });
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleSearch = () => {
+      loadData(1, pagination.pageSize); 
   };
 
-  const onPayeeModeChange = (mode: 'default' | 'select' | 'manual') => {
-      setPayeeAccountMode(mode);
-      if (mode === 'default') {
-          const def = systemAccounts.find(a => a.isDefault);
-          if (def) {
-              manualForm.setFieldsValue({
-                  accountName: def.label,
-                  bankName: def.bank,
-                  accountNo: def.no
+  const getFilteredData = () => {
+      return data.filter(item => {
+          if (filters.supplierName && !item.supplierName.includes(filters.supplierName)) return false;
+          if (filters.purchaseOrderNo && !item.purchaseOrderNo.includes(filters.purchaseOrderNo)) return false;
+          if (filters.bizNo && item.bizNo && !item.bizNo.includes(filters.bizNo)) return false;
+          // bizType 琜索由后端处理，前端不再筛选
+          // if (filters.bizType && item.bizType !== filters.bizType) return false;
+          if (filters.status && item.status !== filters.status) return false;
+          if (filters.settlementType && item.settlementType !== filters.settlementType) return false;
+          return true;
+      });
+  };
+
+  // 批量结算确认弹窗状态
+  const [batchConfirmModalVisible, setBatchConfirmModalVisible] = useState(false);
+  const [batchConfirmData, setBatchConfirmData] = useState<any>(null);
+
+  const handleInitiateSettlement = async () => {
+      if (selectedRowKeys.length === 0) {
+          message.warning('请选择要结算的记录');
+          return;
+      }
+
+      const selectedItems = data.filter(item => 
+          selectedRowKeys.some(key => String(key) === String(item.id))
+      );
+      
+      console.log('selectedRowKeys:', selectedRowKeys);
+      console.log('selectedItems:', selectedItems);
+      
+      // Group by Supplier
+      const groups = new Map<string, PendingSettlementType[]>();
+      selectedItems.forEach(item => {
+          const key = String(item.supplierId);
+          if (!groups.has(key)) {
+              groups.set(key, []);
+          }
+          groups.get(key)?.push(item);
+      });
+
+      if (groups.size === 1) {
+          // 只有一个供应商，显示银行账户确认弹窗
+          const entry = groups.entries().next().value;
+          if (!entry) return;
+          const [supplierId, items] = entry;
+          const supplierName = items[0].supplierName;
+          const totalAmount = items.reduce((sum: number, item: PendingSettlementType) => sum + (item.amount || 0), 0);
+
+          try {
+              const accounts: BankAccount[] = await getSupplierAccounts(supplierId);
+              setPayeeAccounts(accounts);
+              
+              const defaultAcc = accounts.find((a: BankAccount) => a.isDefault) || accounts[0] || null;
+              setSelectedAccount(defaultAcc);
+              
+              setBankModalData({
+                  supplierId,
+                  supplierName,
+                  items,
+                  totalAmount,
+                  isBatch: true,
+                  batchItems: selectedItems
+              });
+              setBankModalVisible(true);
+          } catch (e) {
+              message.error('获取收款方银行信息失败');
+          }
+      } else {
+          // 多个供应商，显示批量确认弹窗
+          const supplierCount = groups.size;
+          const settlementCount = supplierCount; // 每个供应商生成一个结算单
+          const totalItemsCount = selectedItems.length;
+
+          setBatchConfirmData({
+              groups,
+              supplierCount,
+              settlementCount,
+              totalItemsCount,
+              selectedItems
+          });
+          setBatchConfirmModalVisible(true);
+      }
+  };
+
+  const handleBatchConfirm = async () => {
+      if (!batchConfirmData) return;
+
+      try {
+          setLoading(true);
+          
+          // 收集所有勾选的业务变动记录
+          const allBizItems: any[] = [];
+          for (const [supplierId, items] of batchConfirmData.groups.entries()) {
+              items.forEach((item: any) => {
+                  allBizItems.push({
+                      id: item.id,
+                      bizType: item.bizType,
+                      rawId: item.rawId,
+                      purchaseOrderId: item.purchaseOrderId,
+                      purchaseOrderNo: item.purchaseOrderNo,
+                      bizNo: item.bizNo,
+                      supplierId: item.supplierId,
+                      supplierName: item.supplierName,
+                      amount: item.amount
+                  });
               });
           }
-      } else if (mode === 'select') {
-          manualForm.setFieldsValue({
-              accountName: undefined,
-              bankName: undefined,
-              accountNo: undefined
-          });
-      } else {
-          manualForm.setFieldsValue({
-              accountName: '',
-              bankName: '',
-              accountNo: ''
-          });
+          
+          if (allBizItems.length > 0) {
+              await createPurchaseSettlementsFromPending({
+                  items: allBizItems,
+                  createdBy: 'admin'
+              });
+              message.success(`成功生成 ${batchConfirmData.groups.size} 个结算单`);
+              loadData();
+              setSelectedRowKeys([]);
+          }
+      } catch (error) {
+          message.error('批量生成结算单失败');
+      } finally {
+          setLoading(false);
+          setBatchConfirmModalVisible(false);
+          setBatchConfirmData(null);
       }
   };
 
-  const onSystemAccountSelect = (val: string) => {
-      const acc = systemAccounts.find(a => a.value === val);
-      if (acc) {
-          manualForm.setFieldsValue({
-              accountName: acc.label,
-              bankName: acc.bank,
-              accountNo: acc.no
+  const handleInitiateSingleSettlement = async (items: PendingSettlementType[]) => {
+      const supplierId = items[0].supplierId;
+      const supplierName = items[0].supplierName;
+      const totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0);
+
+      try {
+          const accounts: BankAccount[] = await getSupplierAccounts(supplierId);
+          setPayeeAccounts(accounts);
+          
+          const defaultAcc = accounts.find((a: BankAccount) => a.isDefault) || accounts[0] || null;
+          setSelectedAccount(defaultAcc);
+          
+          setBankModalData({
+              supplierId,
+              supplierName,
+              items,
+              totalAmount
           });
+          setBankModalVisible(true);
+      } catch (e) {
+          message.error('获取收款方银行信息失败');
       }
   };
+
+  const handleConfirmSettlement = async () => {
+      if (!selectedAccount) {
+          message.error('请选择收款账户');
+          return;
+      }
+      
+      const { items } = bankModalData;
+      
+      try {
+          // 构建业务变动记录列表
+          const bizItems = items.map((item: PendingSettlementType) => ({
+              id: item.id,
+              bizType: item.bizType,
+              bizTypeLabel: item.bizTypeLabel,
+              rawId: item.rawId,
+              purchaseOrderId: item.purchaseOrderId,
+              purchaseOrderNo: item.purchaseOrderNo,
+              bizNo: item.bizNo,
+              supplierId: item.supplierId,
+              supplierName: item.supplierName,
+              amount: item.amount,
+              platformOrderNo: item.platformOrderNo
+          }));
+          
+          await createPurchaseSettlementsFromPending({
+              items: bizItems,
+              createdBy: 'admin',
+              payeeAccountType: selectedAccount.type || 'COMPANY',
+              payeeAccountName: selectedAccount.name,
+              payeeBank: selectedAccount.bank,
+              payeeAccount: selectedAccount.account
+          });
+
+          message.success('结算发起成功');
+          setBankModalVisible(false);
+          setSelectedRowKeys([]);
+          loadData();
+      } catch (e) {
+          message.error('结算发起失败');
+      }
+  };
+
+  const getStatusInfo = (status: string) => {
+    return {
+        text: getStatusText(status),
+        color: getStatusColor(status)
+    };
+  };
+
+  const columns: ColumnsType<PendingSettlementType> = [
+    { 
+      title: '业务类型', 
+      dataIndex: 'bizType', 
+      render: (val: string, record) => {
+        const bizTypeInfo = getBizTypeInfo(val);
+        return (
+          <Space direction="vertical" size={0}>
+            <Tag color={bizTypeInfo.color}>
+              {bizTypeInfo.label}
+            </Tag>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {record.bizNo || '-'}
+            </Text>
+          </Space>
+        );
+      }
+    },
+    { title: '采购单号', dataIndex: 'purchaseOrderNo' },
+    { title: '商品供应商', dataIndex: 'supplierName' },
+    { title: '结算类型', dataIndex: 'settlementType', render: (val: string) => {
+      if (val === 'CASH') return <Tag color="blue">现付</Tag>;
+      if (val === 'PREPAYMENT') return <Tag color="orange">预付</Tag>;
+      return val || '-';
+    }},
+    { title: '结算周期', dataIndex: 'settlementPeriod', render: (val: number) => {
+      if (val) return `${val}天`;
+      return '-';
+    }},
+    { title: '变动金额', dataIndex: 'amount', render: (val) => {
+      if (val === null || val === undefined) return '-';
+      const numVal = typeof val === 'string' ? parseFloat(val) : val;
+      const color = numVal < 0 ? '#ff4d4f' : '#52c41a';
+      return <span style={{ color }}>{numVal < 0 ? '' : '+'}{`¥${numVal.toFixed(2)}`}</span>;
+    }},
+    { 
+        title: '状态', 
+        dataIndex: 'shippingStatus',
+        render: (val: string, record) => {
+            const status = val || record.status;
+            if (!status) return '-';
+            const statusInfo = getStatusInfo(status);
+            return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
+        }
+    },
+    {
+        title: '操作',
+        key: 'action',
+        width: 100,
+        render: (_, record) => {
+            const menuItems: MenuProps['items'] = [
+                {
+                    key: 'view',
+                    label: '查看',
+                    onClick: () => {
+                        if (record.bizType === 'COST_ADJUSTMENT') {
+                            navigate(`/supply-chain/price-adjustment/detail/${record.bizNo}`);
+                        } else {
+                            navigate(`/supply-chain/purchase-order/detail/${record.purchaseOrderId}`);
+                        }
+                    }
+                }
+            ];
+            
+            if (record.status === '待发货' || record.status === '已发货' || record.status === '已收货' || record.status === 'CONFIRMED' || record.status === 'SHIPPED' || record.status === 'RECEIVED') {
+                menuItems.push({
+                    key: 'settle',
+                    label: '发起结算',
+                    onClick: () => {
+                        setSelectedRowKeys([record.id]);
+                        // 需要稍微延迟让 selectedRowKeys 生效，或者直接传参
+                        handleInitiateSingleSettlement([record]);
+                    }
+                });
+            }
+            
+            return (
+                <Dropdown menu={{ items: menuItems }} trigger={['click']}>
+                    <Button type="link" onClick={e => e.preventDefault()}>
+                        操作 <DownOutlined />
+                    </Button>
+                </Dropdown>
+            );
+        }
+    }
+  ];
 
   return (
-    <div style={{ background: '#fff', padding: 24, minHeight: 360 }}>
+    <div style={{ padding: 24 }}>
       <PageDoc 
-        pageTitle="供应链管理 > 待结算采购单列表 > 待结算采购单列表"
-        description={`待结算采购单列表页。
-
-1. **列表字段**：
-   - 采购单号、变动类型（订单/补货/退款/调价）。
-   - 业务单号（退款单/调价单号）。
-   - 商品规格、变动时间、应结算金额。
-   - 供应商名称、结算周期。
-
-2. **操作功能**：
-   - **查询**：支持采购单号、变动时间、供应商等筛选。
-   - **采购单详情**：跳转查看详情。
-   - **发起结算**：生成供应商结算单（支持批量）。
-     - 批量时按供应商拆分结算单。
-   - **手动生成结算单**：处理非业务流程产生的结算。
-     - 需填写供应商、账户、金额（正负）、备注。
-
-3. **异常处理**：
-   - **发起失败**：若未选中任何记录，提示“请先选择待结算记录”。
-   - **重复发起**：若选中的记录已生成结算单（并发场景），提示“部分记录已结算，请刷新页面”。
-   - **金额校验**：手动生成结算单时，若金额格式错误或为0，提示“请输入有效的结算金额”。`}
-        fields={[
-          { name: 'poNo', type: 'String', length: '32', required: true, unique: true, desc: '采购单号' },
-          { name: 'changeType', type: 'Enum', required: true, defaultValue: '-', desc: '变动类型：OrderPurchase, Replenishment, Refund, PriceAdjust' },
-          { name: 'amount', type: 'Decimal', length: '10,2', required: true, defaultValue: '0.00', desc: '应结算金额' },
-        ]}
-        flowchart={`graph TD
-    A[已确认采购订单] --> B[待结算列表]
-    B -- 批量发起 --> C[生成供应商结算单]
-    D[手动生成] --> C`}
+        pageTitle="供应链管理 > 待结算采购单列表 > 待结算配送单列表"
+        description="物流商配送单自动同步至此列表，支持按供应商批量生成结算单。"
       />
-      <Form layout="inline" style={{ marginBottom: 24 }}>
-         {/* ... existing filters ... */}
-         <Row gutter={[16, 16]}>
-            <Col>
-              <Form.Item label="采购单号">
-                 <Input placeholder="请输入" />
-              </Form.Item>
-            </Col>
-            <Col>
-              <Form.Item label="供应商">
-                 <Input placeholder="请输入" />
-              </Form.Item>
-            </Col>
-            <Col>
-               <Space>
-                  <Button type="primary">查询</Button>
-                  <Button>重置</Button>
-               </Space>
-            </Col>
-         </Row>
-      </Form>
+      <SearchFormLayout onSearch={handleSearch} onReset={() => { const emptyFilters = { supplierName: '', purchaseOrderNo: '', status: '', bizType: '', settlementType: '', bizNo: '' }; setFilters(emptyFilters); loadData(1, pagination.pageSize, emptyFilters); }}>
+         <Form.Item label="采购单号" style={{ marginBottom: 0 }}>
+            <Input placeholder="请输入采购单号" value={filters.purchaseOrderNo} onChange={e => setFilters({ ...filters, purchaseOrderNo: e.target.value })} />
+         </Form.Item>
+         <Form.Item label="业务单号" style={{ marginBottom: 0 }}>
+            <Input placeholder="请输入业务单号" value={filters.bizNo} onChange={e => setFilters({ ...filters, bizNo: e.target.value })} />
+         </Form.Item>
+         <Form.Item label="供应商" style={{ marginBottom: 0 }}>
+            <Input placeholder="请输入供应商名称" value={filters.supplierName} onChange={e => setFilters({ ...filters, supplierName: e.target.value })} />
+         </Form.Item>
+ <Form.Item label="业务类型" style={{ marginBottom: 0 }}>
+            <Select value={filters.bizType} onChange={v => setFilters({ ...filters, bizType: v })} style={{ width: '100%' }} allowClear>
+                <Select.Option value="PLATFORM">平台单</Select.Option>
+                <Select.Option value="INBOUND">入库单</Select.Option>
+                <Select.Option value="REPLENISHMENT">补货单</Select.Option>
+                <Select.Option value="COST_ADJUSTMENT">调价单</Select.Option>
+                <Select.Option value="REFUND">退款单</Select.Option>
+            </Select>
+         </Form.Item>
+         <Form.Item label="状态" style={{ marginBottom: 0 }}>
+            <Select value={filters.status} onChange={v => setFilters({ ...filters, status: v })} style={{ width: '100%' }} allowClear>
+                <Select.Option value="TO_SHIP">待发货</Select.Option>
+                <Select.Option value="SHIPPED">已发货</Select.Option>
+                <Select.Option value="RECEIVED">已收货</Select.Option>
+                <Select.Option value="COMPLETED">已完成</Select.Option>
+            </Select>
+         </Form.Item>
+      </SearchFormLayout>
 
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-         <Space>
-            <Button type="primary" onClick={handleSettle}>批量发起结算</Button>
-            <Button onClick={handleManualSettle}>手动生成结算单</Button>
-         </Space>
-         <Tooltip title="支持Excel/CSV格式导出，最大支持10000条数据">
-            <Button icon={<ExportOutlined />} onClick={handleExport} loading={exporting}>
-               {exporting ? `导出中 ${progress}%` : '批量导出'}
-            </Button>
-         </Tooltip>
+      <div style={{ marginBottom: 16 }}>
+        <Button type="primary" onClick={handleInitiateSettlement} disabled={selectedRowKeys.length === 0}>
+          批量发起结算
+        </Button>
       </div>
-
-      <Table 
-         rowSelection={{ 
+      <Card bodyStyle={{ padding: 0 }}>
+        <Table 
+          rowSelection={{
             type: 'checkbox',
             selectedRowKeys,
-            onChange: (keys, rows) => {
-                setSelectedRowKeys(keys);
-                setSelectedRows(rows);
+            onChange: (keys) => setSelectedRowKeys(keys)
+          }}
+          rowKey="id"
+          columns={columns} 
+          dataSource={data} 
+          loading={loading}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            onChange: (page, size) => {
+              loadData(page, size);
             }
-         }}
-         columns={columns} 
-         dataSource={dataSource} 
-         loading={loading}
-      />
-      
+          }}
+        />
+      </Card>
+
       <Modal
-         title="手动生成结算单"
-         open={isManualModalOpen}
-         onOk={handleManualSettleSubmit}
-         onCancel={() => setIsManualModalOpen(false)}
-         okText="提交"
-         width={600}
+        title="确认收款方银行信息"
+        open={bankModalVisible}
+        onOk={handleConfirmSettlement}
+        onCancel={() => setBankModalVisible(false)}
+        width={600}
       >
-         <Form form={manualForm} layout="vertical">
-            <Row gutter={16}>
-               <Col span={12}>
-                  <Form.Item name="poNo" label="采购单号" rules={[{ required: true, message: '请输入采购单号' }]}>
-                     <Input placeholder="请输入采购单号" />
-                  </Form.Item>
-               </Col>
-               <Col span={12}>
-                  <Form.Item name="supplier" label="供应商名称" rules={[{ required: true, message: '请输入供应商' }]}>
-                     <Input placeholder="请输入供应商" />
-                  </Form.Item>
-               </Col>
-            </Row>
-            <Row gutter={16}>
-               <Col span={24}>
-                  <Form.Item label="收款账户设置">
-                     <Space>
-                        <Select value={payeeAccountMode} onChange={onPayeeModeChange} style={{ width: 150 }}>
-                            <Select.Option value="default">使用默认账户</Select.Option>
-                            <Select.Option value="select">选择已有账户</Select.Option>
-                            <Select.Option value="manual">手动填写</Select.Option>
-                        </Select>
-                        {payeeAccountMode === 'select' && (
-                            <Select style={{ width: 200 }} placeholder="请选择账户" onChange={onSystemAccountSelect}>
-                                {systemAccounts.map(a => <Select.Option key={a.value} value={a.value}>{a.label}</Select.Option>)}
-                            </Select>
-                        )}
-                     </Space>
-                  </Form.Item>
-               </Col>
-            </Row>
-            <Row gutter={16}>
-               <Col span={12}>
-                  <Form.Item name="accountName" label="收款开户名" rules={[{ required: true }]}>
-                     <Input disabled={payeeAccountMode !== 'manual'} />
-                  </Form.Item>
-               </Col>
-               <Col span={12}>
-                  <Form.Item name="bankName" label="开户行" rules={[{ required: true }]}>
-                     <Input disabled={payeeAccountMode !== 'manual'} />
-                  </Form.Item>
-               </Col>
-            </Row>
-            <Row gutter={16}>
-               <Col span={12}>
-                  <Form.Item name="accountNo" label="收款账号" rules={[{ required: true }]}>
-                     <Input disabled={payeeAccountMode !== 'manual'} />
-                  </Form.Item>
-               </Col>
-               <Col span={12}>
-                  <Form.Item name="amount" label="结算金额 (正数付款/负数收款)" rules={[{ required: true, message: '请输入金额' }]}>
-                     <InputNumber 
-                        style={{ width: '100%' }} 
-                        formatter={value => `¥ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                        parser={value => value!.replace(/\¥\s?|(,*)/g, '')}
-                     />
-                  </Form.Item>
-               </Col>
-            </Row>
-            <Form.Item name="remark" label="备注">
-               <Input.TextArea rows={2} />
-            </Form.Item>
-         </Form>
+        {bankModalData && (
+          <div style={{ marginBottom: 16 }}>
+            <p><strong>收款方：</strong>{bankModalData.supplierName}</p>
+            <p><strong>结算金额：</strong>¥{bankModalData.totalAmount.toFixed(2)}</p>
+            {bankModalData.isBatch && (
+              <p><strong>结算记录数：</strong>{bankModalData.items.length} 条</p>
+            )}
+          </div>
+        )}
+        
+        {payeeAccounts.length === 0 ? (
+           <p style={{ color: 'red' }}>未配置银行账户信息，请先配置或联系管理员。</p>
+        ) : (
+          <Form layout="vertical">
+             <Form.Item label="选择银行账户">
+                <Select 
+                   value={selectedAccount?.id} 
+                   onChange={(val) => setSelectedAccount(payeeAccounts.find(a => a.id === val) || null)}
+                >
+                   {payeeAccounts.map(acc => (
+                      <Select.Option key={acc.id} value={acc.id}>
+                         {acc.bank} - {acc.account} ({acc.name}) {acc.isDefault ? ' [默认]' : ''}
+                      </Select.Option>
+                   ))}
+                </Select>
+             </Form.Item>
+             
+             {selectedAccount && (
+                <Card size="small" style={{ background: '#fafafa' }}>
+                   <p><strong>账户类型：</strong>{selectedAccount.type === 'COMPANY' ? '企业对公账户' : selectedAccount.type === 'PERSONAL' ? '个人账户' : (selectedAccount.type || '-')}</p>
+                   <p><strong>账户名称：</strong>{selectedAccount.name}</p>
+                   <p><strong>开户银行：</strong>{selectedAccount.bank}</p>
+                   <p><strong>银行账号：</strong>{selectedAccount.account}</p>
+                </Card>
+             )}
+          </Form>
+        )}
+      </Modal>
+
+      <Modal
+        title="批量发起结算确认"
+        open={batchConfirmModalVisible}
+        onOk={handleBatchConfirm}
+        onCancel={() => {
+          setBatchConfirmModalVisible(false);
+          setBatchConfirmData(null);
+        }}
+        width={500}
+      >
+        {batchConfirmData && (
+          <div style={{ marginBottom: 16 }}>
+            <p><strong>供应商数量：</strong>{batchConfirmData.supplierCount} 个</p>
+            <p><strong>结算单数量：</strong>{batchConfirmData.settlementCount} 个</p>
+            <p><strong>结算记录数：</strong>{batchConfirmData.totalItemsCount} 条</p>
+            <div style={{ marginTop: 16, padding: 12, background: '#f0f0f0', borderRadius: 4 }}>
+              <p style={{ marginBottom: 8 }}><strong>温馨提示：</strong></p>
+              <p>系统将为每个供应商自动生成一个结算单，并使用各供应商的默认银行账户信息。</p>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

@@ -31,6 +31,10 @@ public interface BrandRepository extends JpaRepository<Brand, Long> {
     @Query("SELECT b.id FROM Brand b JOIN b.suppliers s WHERE s.purchaser.username = :username")
     List<Long> findBrandIdsByPurchaser(@Param("username") String username);
 
-    @Query("SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END FROM Brand b JOIN b.suppliers s WHERE b.id = :id AND s.purchaser.username = :username")
-    boolean hasPermission(@Param("id") Long id, @Param("username") String username);
+
+
+    Brand findByName(String name);
+
+    @Query("SELECT COUNT(b) > 0 FROM Brand b JOIN b.suppliers s WHERE b.id = :id AND s.purchaser.username = :username")
+    boolean hasPermission(@Param("id") long id, @Param("username") String username);
 }

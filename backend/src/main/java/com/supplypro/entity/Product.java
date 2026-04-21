@@ -49,6 +49,13 @@ public class Product {
     @Column(name = "brand_logo")
     private String brandLogo;
 
+    // Default Supplier Info (Loose coupling, no FK constraint)
+    @Column(name = "default_supplier_id")
+    private Long defaultSupplierId;
+
+    @org.hibernate.annotations.Formula("(SELECT s.name FROM suppliers s WHERE s.id = default_supplier_id)")
+    private String defaultSupplierName;
+
     @Transient
     public String getDisplayBrandName() {
         return brand != null ? brand.getName() : brandZhName;
@@ -95,8 +102,15 @@ public class Product {
     @Column(name = "promo_file")
     private String promoFile;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = com.supplypro.converter.ProductStatusConverter.class)
     private Status status = Status.PENDING_SELECTION;
+
+    @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "VARCHAR(20) DEFAULT 'NORMAL'")
+    private ProductType type = ProductType.NORMAL;
+
+    @Transient
+    private List<ProductBundle> bundleItems;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @lombok.ToString.Exclude
@@ -120,7 +134,7 @@ public class Product {
     private String updatedBy;
 
     public enum Status {
-        PENDING_SELECTION, SELECTED, ON_SHELF, OFF_SHELF, ACTIVE;
+        PENDING_SELECTION, SELECTED, ON_SHELF, OFF_SHELF, ACTIVE, LISTED, DELISTED;
 
         @com.fasterxml.jackson.annotation.JsonCreator
         public static Status fromString(String value) {
@@ -138,6 +152,8 @@ public class Product {
                 if ("PENDINGSELECTION".equals(upper)) return PENDING_SELECTION;
                 if ("ONSHELF".equals(upper)) return ON_SHELF;
                 if ("OFFSHELF".equals(upper)) return OFF_SHELF;
+                if ("LISTED".equals(upper)) return LISTED;
+                if ("DELISTED".equals(upper)) return DELISTED;
                 
                 // Fallback: iterate and check if name matches ignoring underscores (fuzzy match)
                 String normalizedInput = upper.replace("_", "");
@@ -150,5 +166,9 @@ public class Product {
                 throw new IllegalArgumentException("Invalid status: " + value);
             }
         }
+    }
+
+    public enum ProductType {
+        NORMAL, BUNDLE
     }
 }

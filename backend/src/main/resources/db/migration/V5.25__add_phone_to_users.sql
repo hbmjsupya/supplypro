@@ -1,0 +1,2 @@
+-- Phone column already exists in V2.0
+-- ALTER TABLE users ADD COLUMN phone VARCHAR(20) DEFAULT NULL;
