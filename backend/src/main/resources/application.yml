@@ -48,10 +48,12 @@ spring:
       org.springframework.security: DEBUG
       com.supplypro: DEBUG
   flyway:
-    enabled: false
+    enabled: true
     baseline-on-migrate: true
+    baseline-version: "5.100"
     validate-on-migrate: false
     clean-disabled: false
+    locations: classpath:db/migration
   sql:
     init:
       mode: never
