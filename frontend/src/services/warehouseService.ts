@@ -153,6 +153,11 @@ export const getInboundOrder = async (id: string): Promise<any> => {
     }
 };
 
+export const getInboundOrderByNo = async (no: string): Promise<any> => {
+  const res: any = await request.get('/inbound-orders/by-no', { params: { no } });
+  return res?.data || res;
+};
+
 export const createInboundOrder = async (payload: { purchaseOrderId: number, warehouseId: number }): Promise<void> => {
   await request.post('/inbound-orders', payload);
 };
@@ -291,6 +296,11 @@ export const cancelOutboundOrder = async (id: string | number): Promise<any> => 
 
 export const getOutboundOrderById = async (id: string | number): Promise<any> => {
   const res: any = await request.get(`/outbound-orders/${id}`);
+  return res?.data || res;
+};
+
+export const getOutboundOrderByNo = async (no: string): Promise<any> => {
+  const res: any = await request.get('/outbound-orders/by-no', { params: { no } });
   return res?.data || res;
 };
 

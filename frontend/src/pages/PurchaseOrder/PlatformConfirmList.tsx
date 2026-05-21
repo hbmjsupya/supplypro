@@ -110,7 +110,10 @@ const PlatformConfirmList: React.FC = () => {
               cost: item.cost,
               supplier: item.supplierName || '',
               supplierId: item.supplierId ? String(item.supplierId) : undefined,
-              totalCost: item.totalCost,
+              // 兜底计算：如果后端未返回totalCost，则用quantity*cost计算
+              totalCost: item.totalCost != null && item.totalCost > 0 
+                ? item.totalCost 
+                : (item.quantity || 0) * (item.cost || 0),
               receiver: item.receiver,
               address: item.address,
               projectName: item.projectName,
@@ -132,148 +135,10 @@ const PlatformConfirmList: React.FC = () => {
           console.log('API not available, falling back to mock data generation', apiError);
         }
         
-        // Fallback to mock data generation if API fails or returns empty
-        const res: any = await productService.getAll({ page: 0, size: 100, status: 'ON_SHELF' });
-        const products = res.data?.records || res.records || [];
-        
-        // Extract all SKUs
-        const allSkus: { product: any, sku: any }[] = [];
-        products.forEach((p: any) => {
-          if (p.skus && p.skus.length > 0) {
-            p.skus.forEach((s: any) => {
-              allSkus.push({ product: p, sku: s });
-            });
-          }
-        });
-
-        if (allSkus.length === 0) {
-          message.warning('商品池中没有启用的商品规格，无法生成虚拟数据');
-          setLoading(false);
-          return;
-        }
-
-        // 尝试从 sessionStorage 获取已缓存的模拟数据
-        const cachedData = sessionStorage.getItem('mockPlatformConfirmData');
-        if (cachedData) {
-            try {
-                const parsedData = JSON.parse(cachedData);
-                if (Array.isArray(parsedData) && parsedData.length > 0) {
-                    // Check if cached data has the new platform fields, if not, patch them
-                    const hasPlatformInfo = parsedData[0].platformName !== undefined;
-                    
-                    if (!hasPlatformInfo) {
-                        const platforms = ['得物', '天猫', '京东', '淘宝', '拼多多'];
-                        const patchedData = parsedData.map((item, index) => {
-                            const platformName = platforms[Math.floor(Math.random() * platforms.length)];
-                            const platformOrderNo = `PO${Date.now()}${String(index).padStart(4, '0')}`;
-                            const thirdPartyNo = `TP${Date.now()}${String(index).padStart(4, '0')}`; // 独立的三方单号
-                            return {
-                                ...item,
-                                platformName,
-                                platformOrderNo,
-                                thirdPartyNo: thirdPartyNo // 使用独立的三方单号
-                            };
-                        });
-                        sessionStorage.setItem('mockPlatformConfirmData', JSON.stringify(patchedData));
-                        setDataSource(patchedData);
-                        setOriginalData(patchedData);
-                    } else {
-                        setDataSource(parsedData);
-                        setOriginalData(parsedData);
-                    }
-                    
-                    setLoading(false);
-                    return;
-                }
-            } catch (e) {
-                console.error('Failed to parse cached mock data', e);
-            }
-        }
-
-        const generatedData: ConfirmItemType[] = [];
-        let currentOrderNo = `ORD${Date.now()}000`;
-        const orderTypes: ('SubOrder' | 'Replenishment' | 'Refund')[] = ['SubOrder', 'Replenishment', 'Refund'];
-
-        for (let i = 0; i < 100; i++) {
-          // Change orderNo every 2-3 items to simulate multi-item orders
-          if (i > 0 && Math.random() > 0.6) {
-            currentOrderNo = `ORD${Date.now()}${String(i).padStart(3, '0')}`;
-          }
-
-          const skuObj = allSkus[i % allSkus.length];
-          const product = skuObj.product;
-          const sku = skuObj.sku;
-          
-          const qty = Math.floor(Math.random() * 50) + 1;
-          const cost = sku.costPrice || 0;
-          const totalCost = cost * qty;
-          const supplierName = sku.supplier?.name || product.defaultSupplierName || '默认供应商';
-
-          const orderType = i % 2 === 0 ? 'OrderPurchase' : 'Replenishment'; // Randomly assign OrderPurchase or Replenishment for testing
-          
-          let costType: 'Platform' | 'Supplier' = 'Platform';
-          if (orderType === 'Replenishment') {
-              costType = Math.random() > 0.7 ? 'Supplier' : 'Platform'; // 30% chance of Supplier for Replenishment
-          }
-
-          // Generate mock expectedReceiveTime (1-10 days from now)
-          const futureDate = new Date();
-          futureDate.setDate(futureDate.getDate() + Math.floor(Math.random() * 10) + 1);
-          const expectedReceiveTime = futureDate.toISOString().replace('T', ' ').substring(0, 19);
-
-          // Generate mock orderRemark
-          const remarks = [
-            '加急处理，客户要求包装完好，千万不要破损。',
-            '请在工作日配送，周末无人收货。',
-            '送货前请提前电话联系。',
-            '包含易碎品，请小心轻放。',
-            '',
-            '',
-            ''
-          ];
-          const orderRemark = remarks[Math.floor(Math.random() * remarks.length)];
-
-          // 补充独立的 bizNo, platformName, platformOrderNo 和 thirdPartyNo
-          const platforms = ['得物', '天猫', '京东', '淘宝', '拼多多'];
-          const platformName = platforms[Math.floor(Math.random() * platforms.length)];
-          const platformOrderNo = `PO${Date.now()}${String(i).padStart(4, '0')}`;
-          const thirdPartyNo = `TP${Date.now()}${String(i).padStart(4, '0')}`; // 独立的三方单号
-          const bizNo = `BIZ${Date.now()}${String(i).padStart(4, '0')}`;
-
-          generatedData.push({
-            key: String(i + 1),
-            orderNo: currentOrderNo,
-            orderType: orderType,
-            bizNo: bizNo,
-            thirdPartyNo: thirdPartyNo, // 使用独立的三方单号
-            platformName: platformName,
-            platformOrderNo: platformOrderNo,
-            productName: product.name,
-            specName: sku.specification || sku.name || '-',
-            quantity: qty,
-            cost: cost,
-            supplier: supplierName,
-            totalCost: totalCost,
-            receiver: `用户${i} / 138${String(Math.floor(Math.random() * 100000000)).padStart(8, '0')}`,
-            address: '上海市浦东新区张江高科园区',
-            projectName: '日常采购项目',
-            costType: costType,
-            originalCost: cost,
-            originalSupplier: supplierName,
-            productId: String(product.id),
-            skuId: String(sku.id),
-            expectedReceiveTime,
-            orderRemark,
-          });
-        }
-        
-        setDataSource(generatedData);
-        setOriginalData(generatedData);
-        // 将新生成的模拟数据存入 sessionStorage，保证当前会话内刷新页面数据不变
-        sessionStorage.setItem('mockPlatformConfirmData', JSON.stringify(generatedData));
-      } catch (error) {
-        console.error('Failed to generate mock data:', error);
-        message.error('生成虚拟数据失败');
+        // 禁用自动生成，仅显示空列表
+        // 数据需通过"生成模拟数据"按钮或后端API手动触发
+        setDataSource([]);
+        setOriginalData([]);
       } finally {
         setLoading(false);
       }

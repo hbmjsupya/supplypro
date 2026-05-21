@@ -380,6 +380,14 @@ public class InboundOrderController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/by-no")
+    @Transactional(readOnly = true)
+    public ResponseEntity<Map<String, Object>> getByNo(@RequestParam String no) {
+        return inboundOrderRepository.findByInboundNo(no)
+                .map(order -> ResponseEntity.ok(Map.of("code", 200, "data", Map.of("id", order.getId(), "inboundNo", order.getInboundNo()))))
+                .orElse(ResponseEntity.status(404).body(Map.of("code", 404, "message", "入库单不存在")));
+    }
+
     @GetMapping("/{id}")
     @Transactional(readOnly = true)
     public ResponseEntity<Map<String, Object>> getById(@PathVariable Long id) {

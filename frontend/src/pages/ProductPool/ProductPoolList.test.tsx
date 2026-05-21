@@ -299,7 +299,7 @@ describe('ProductPoolList', () => {
         });
         
         // Simulate OK
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         const confirmCall = (Modal.confirm as any).mock.calls[0]?.[0];
         if (confirmCall && confirmCall.onOk) {
             await confirmCall.onOk();
@@ -470,7 +470,7 @@ describe('ProductPoolList', () => {
         });
         
         // Simulate clicking OK on the modal
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         const confirmCall = (Modal.confirm as any).mock.calls[0]?.[0];
         if (confirmCall && confirmCall.onOk) {
             confirmCall.onOk();

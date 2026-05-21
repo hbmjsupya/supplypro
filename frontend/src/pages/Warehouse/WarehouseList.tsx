@@ -100,7 +100,7 @@ const WarehouseList: React.FC = () => {
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   const handleAdd = async (_e: React.MouseEvent) => {
     setEditingId(null);
     form.resetFields();

@@ -1,0 +1,1 @@
+{"code":200,"message":"Success","data":[{"id":9,"type":"COMPANY","name":"戴尔(中国)有限公司","bank":"中国建设银行股份有限公司","account":"31050161930700001234","bankId":4,"status":true,"isDefault":true},{"id":10,"type":"PERSONAL","name":"孙立成","bank":"中国民生银行股份有限公司","account":"6226190123456789","bankId":11,"status":true,"isDefault":false}]}

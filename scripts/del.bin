@@ -1,0 +1,1 @@
+{"code":500,"message":"Failed to delete all products: could not execute statement; SQL [n/a]; constraint [null]; nested exception is org.hibernate.exception.ConstraintViolationException: could not execute statement"}

@@ -304,13 +304,12 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         order.setSupplierId(supplier.getId());
         
         // 兜底设置仓库：只有非“平台单”和“补货单”才强制校验或兜底仓库
-        if (order.getBizType() != PurchaseOrder.BizType.PLATFORM && order.getBizType() != PurchaseOrder.BizType.REPLENISHMENT) {
-            java.util.List<com.supplypro.entity.Warehouse> warehouses = warehouseRepository.findAll();
-            if (!warehouses.isEmpty()) {
-                order.setWarehouseId(warehouses.get(0).getId());
-            } else {
-                order.setWarehouseId(1L);
-            }
+        // 兜底设置仓库：所有类型都必须有warehouse_id（数据库NOT NULL约束）
+        java.util.List<com.supplypro.entity.Warehouse> warehouses = warehouseRepository.findAll();
+        if (!warehouses.isEmpty()) {
+            order.setWarehouseId(warehouses.get(0).getId());
+        } else {
+            order.setWarehouseId(1L);
         }
         
         // 3. 设置明细
@@ -367,6 +366,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     @Transactional
     public PurchaseOrder createGeneralPurchaseOrder(PurchaseOrder order) {
         logger.info("Creating General Purchase Order. DeliveryDate received: {}", order.getDeliveryDate());
+        
+        if (order.getItems() == null || order.getItems().isEmpty()) {
+            throw new IllegalArgumentException("Purchase Order must contain at least one product item.");
+        }
         
         // Force initial status to PENDING for all other types
         order.setStatus(PurchaseOrder.Status.PENDING);
@@ -898,26 +901,66 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         PurchaseOrder.ShippingStatus oldStatus = po.getShippingStatus();
         PurchaseOrder.Status oldMainStatus = po.getStatus();
         
-        po.setLogisticsCompany(company);
-        po.setTrackingNumber(trackingNo);
-        po.setDeliverer(deliverer);
-        po.setDelivererPhone(delivererPhone);
-        po.setPlateNumber(plateNumber);
-        po.setLogisticsFee(logisticsFee != null ? logisticsFee : java.math.BigDecimal.ZERO);
-        po.setDeliveryMethod(deliveryMethod);
+        String resolvedCompany = company;
+        java.time.LocalDateTime resolvedShippedAt = shippedAt;
+        java.time.LocalDateTime resolvedExpectedArrival = expectedArrival;
+        String resolvedDeliverer = deliverer;
+        String resolvedDelivererPhone = delivererPhone;
+        String resolvedPlateNumber = plateNumber;
+        java.math.BigDecimal resolvedFee = logisticsFee != null ? logisticsFee : java.math.BigDecimal.ZERO;
+        String resolvedDeliveryMethod = deliveryMethod;
+        Long resolvedProviderId = logisticsProviderId;
         
-        if (shippedAt != null) {
-            po.setShippedAt(shippedAt);
+        if (trackingNo != null && !trackingNo.isEmpty()) {
+            List<PurchaseOrder> duplicates = purchaseOrderRepository.findByTrackingNumber(trackingNo);
+            if (duplicates != null && !duplicates.isEmpty()) {
+                PurchaseOrder duplicate = duplicates.stream()
+                    .filter(p -> !p.getId().equals(id))
+                    .findFirst()
+                    .orElse(null);
+                
+                if (duplicate != null) {
+                    java.math.BigDecimal histFee = duplicate.getLogisticsFee() != null ? duplicate.getLogisticsFee() : java.math.BigDecimal.ZERO;
+                    
+                    if (histFee.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                        resolvedFee = java.math.BigDecimal.ZERO;
+                        resolvedCompany = duplicate.getLogisticsCompany();
+                        resolvedShippedAt = duplicate.getShippedAt();
+                        resolvedExpectedArrival = duplicate.getExpectedArrival();
+                        resolvedDeliverer = duplicate.getDeliverer();
+                        resolvedDelivererPhone = duplicate.getDelivererPhone();
+                        resolvedPlateNumber = duplicate.getPlateNumber();
+                        resolvedDeliveryMethod = duplicate.getDeliveryMethod();
+                        if (duplicate.getLogisticsProvider() != null) {
+                            resolvedProviderId = duplicate.getLogisticsProvider().getId();
+                        } else {
+                            resolvedProviderId = null;
+                        }
+                    }
+                }
+            }
+        }
+        
+        po.setLogisticsCompany(resolvedCompany);
+        po.setTrackingNumber(trackingNo);
+        po.setDeliverer(resolvedDeliverer);
+        po.setDelivererPhone(resolvedDelivererPhone);
+        po.setPlateNumber(resolvedPlateNumber);
+        po.setLogisticsFee(resolvedFee);
+        po.setDeliveryMethod(resolvedDeliveryMethod);
+        
+        if (resolvedShippedAt != null) {
+            po.setShippedAt(resolvedShippedAt);
         } else {
             po.setShippedAt(java.time.LocalDateTime.now());
         }
         
-        if (expectedArrival != null) {
-            po.setExpectedArrival(expectedArrival);
+        if (resolvedExpectedArrival != null) {
+            po.setExpectedArrival(resolvedExpectedArrival);
         }
         
-        if (logisticsProviderId != null) {
-            com.supplypro.entity.LogisticsProvider provider = logisticsProviderRepository.findById(logisticsProviderId).orElse(null);
+        if (resolvedProviderId != null) {
+            com.supplypro.entity.LogisticsProvider provider = logisticsProviderRepository.findById(resolvedProviderId).orElse(null);
             if (provider != null) {
                 po.setLogisticsProvider(provider);
                 po.setLogisticsSupplierName(provider.getName());
@@ -1765,6 +1808,12 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
      * @param newStatus 变更后的状态
      */
     private void createPurchaseSettlementIfNeeded(PurchaseOrder po, PurchaseOrder.Status oldStatus, String newStatus) {
+        // 供应商承担的成本不需要平台创建结算单（由供应商自行结算）
+        if ("SUPPLIER".equals(po.getCostType())) {
+            logger.debug("采购单 {} 为供应商承担成本，跳过创建商品结算单", po.getOrderNo());
+            return;
+        }
+        
         // 只有当状态从待处理变更为待发货、已发货或已收货时才创建商品结算单
         if (oldStatus != PurchaseOrder.Status.PENDING) {
             logger.debug("采购单 {} 状态从 {} 变更为 {}，不需要创建商品结算单", 

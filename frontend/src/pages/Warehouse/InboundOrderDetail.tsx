@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Descriptions, Table, Button, Space, Breadcrumb, Tag, Modal, message, Timeline, Result, Spin, Divider, Avatar } from 'antd';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { CheckCircleOutlined, ClockCircleOutlined, UserOutlined, PaperClipOutlined } from '@ant-design/icons';
 import PageDoc from '../../components/PageDoc';
-import { getInboundOrder, confirmInboundOrder } from '../../services/warehouseService';
+import { getInboundOrder, getInboundOrderByNo, confirmInboundOrder } from '../../services/warehouseService';
 import { getStatusText, getStatusColor } from '../../utils/statusMapping';
 import LogisticsTracker, { LogisticsTrackerRef } from '../PurchaseOrder/components/LogisticsTracker';
 import { useRef } from 'react';
@@ -11,6 +11,7 @@ import { useRef } from 'react';
 const InboundOrderDetail: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<boolean>(false);
@@ -22,6 +23,31 @@ const InboundOrderDetail: React.FC = () => {
   const logisticsTrackerRef = useRef<LogisticsTrackerRef>(null);
 
   const loadData = async () => {
+        // 支持通过 ?no=INxxx 参数查询
+        const no = searchParams.get('no');
+        if (no) {
+          setLoading(true);
+          setLoadError(false);
+          try {
+              const res = await getInboundOrderByNo(no);
+              if (res && res.id) {
+                  navigate(`/supply-chain/inbound/detail/${res.id}`, { replace: true });
+                  return;
+              } else {
+                  setLoadError(true);
+                  setErrorMessage('入库单不存在');
+                  setLoading(false);
+                  return;
+              }
+          } catch (error) {
+              console.error('Failed to load inbound order by no:', error);
+              setLoadError(true);
+              setErrorMessage('入库单不存在');
+              setLoading(false);
+              return;
+          }
+        }
+
         if (!id) {
             message.error('参数错误：缺少入库单ID');
             navigate('/supply-chain/inbound');
@@ -71,7 +97,7 @@ const InboundOrderDetail: React.FC = () => {
   const handleConfirm = async () => {
     try {
         if (!id) return;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         await confirmInboundOrder(id, 'CurrentUser');
         message.success('确认到货成功');
         setConfirmModalOpen(false);

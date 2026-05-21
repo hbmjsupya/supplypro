@@ -67,6 +67,10 @@ public class CostAdjustmentServiceImpl implements CostAdjustmentService {
     @Override
     @Transactional
     public CostAdjustmentSheet createSingleAdjustment(Long purchaseOrderId, BigDecimal newCost, String reason) {
+        if (newCost != null && newCost.compareTo(BigDecimal.ZERO) < 0) {
+            throw new RuntimeException("调价后成本价不能小于0");
+        }
+
         PurchaseOrder po = purchaseOrderRepository.findById(purchaseOrderId)
                 .orElseThrow(() -> new RuntimeException("采购单不存在: " + purchaseOrderId));
 

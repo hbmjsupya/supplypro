@@ -91,7 +91,7 @@ const LogisticsTracker = forwardRef<LogisticsTrackerRef, LogisticsTrackerProps>(
 
     // Validation - 更新验证规则：允许字母、数字、横线，长度5-50字符
     // 自配送运单号可能包含横线，如"DD202611233155601-G1"
-    if (trackingNo && !/^[A-Za-z0-9\-]{5,50}$/.test(trackingNo)) {
+    if (trackingNo && !/^[A-Za-z0-9-]{5,50}$/.test(trackingNo)) {
         setError({
             message: '物流单号格式不正确（需为5-50位字母、数字或横线）',
             status: 400
@@ -152,7 +152,7 @@ const LogisticsTracker = forwardRef<LogisticsTrackerRef, LogisticsTrackerProps>(
       }
 
       const normalizedResponse: LogisticsResponse = {
-          success: anyRes.success !== undefined ? anyRes.success : anyRes.Success,
+          success: anyRes.success !== undefined ? anyRes.success : (anyRes.Success !== undefined ? anyRes.Success : true),
           reason: anyRes.reason || anyRes.Reason,
           state: anyRes.state || anyRes.State,
           traces: normalizedTraces,
@@ -331,6 +331,26 @@ const LogisticsTracker = forwardRef<LogisticsTrackerRef, LogisticsTrackerProps>(
   }
 
   if (data.traces.length === 0 && data.success) {
+      if (data.state === 'CANCELLED') {
+          return (
+              <Alert
+                  message="订单已取消"
+                  description="该订单已取消，无需查询物流信息"
+                  type="info"
+                  showIcon
+              />
+          );
+      }
+      if (data.state === 'NO_INFO') {
+          return (
+              <Alert
+                  message="暂无物流信息"
+                  description="该订单尚未录入物流单号或快递公司信息，请确认订单已发货"
+                  type="info"
+                  showIcon
+              />
+          );
+      }
       return <Empty description="暂无物流信息" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
   }
 

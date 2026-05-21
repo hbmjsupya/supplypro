@@ -191,6 +191,10 @@ public class OutboundOrderController {
                 Long batchId = Long.valueOf(item.get("batchId").toString());
                 int quantity = Integer.valueOf(item.get("quantity").toString());
                 
+                if (quantity <= 0) {
+                    throw new RuntimeException("出库数量必须大于0");
+                }
+                
                 StockBatch batch = stockBatchRepository.findById(batchId)
                     .orElseThrow(() -> new RuntimeException("库存批次不存在: " + batchId));
                 
@@ -398,6 +402,9 @@ public class OutboundOrderController {
                     
                     batch.setAvailableQuantity(available - toDeduct);
                     batch.setQuantity(batch.getQuantity() - toDeduct);
+                    if (batch.getAvailableQuantity() <= 0) {
+                        batch.setStatus(StockBatch.Status.SOLD_OUT);
+                    }
                     stockBatchRepository.save(batch);
 
                     if (firstBatch == null) {
@@ -504,6 +511,9 @@ public class OutboundOrderController {
                  
                  batch.setAvailableQuantity(available - toDeduct);
                  batch.setQuantity(batch.getQuantity() - toDeduct);
+                 if (batch.getAvailableQuantity() <= 0) {
+                     batch.setStatus(StockBatch.Status.SOLD_OUT);
+                 }
                  stockBatchRepository.save(batch);
 
                  BigDecimal unitCost = batch.getUnitCost() != null ? batch.getUnitCost() : BigDecimal.ZERO;
@@ -645,6 +655,15 @@ public class OutboundOrderController {
         settlement.setCreatedBy(operator);
         
         settlementOrderRepository.save(settlement);
+    }
+
+    @GetMapping("/by-no")
+    public ResponseEntity<Map<String, Object>> getByNo(@RequestParam String no) {
+        OutboundOrder oo = outboundOrderRepository.findByOutboundNo(no);
+        if (oo == null) {
+            return ResponseEntity.status(404).body(Map.of("code", 404, "message", "出库单不存在"));
+        }
+        return ResponseEntity.ok(Map.of("code", 200, "data", Map.of("id", oo.getId(), "outboundNo", oo.getOutboundNo())));
     }
 
     @GetMapping("/{id}")

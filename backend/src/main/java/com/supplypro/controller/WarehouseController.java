@@ -129,37 +129,16 @@ public class WarehouseController {
 
         Page<Warehouse> pageResult = warehouseRepository.findAll(spec, PageRequest.of(page, size, sort));
         
-        // 计算每个仓库的成本合计（从StockFlow流水记录计算最后结存成本之和）
-        List<StockFlow> allFlows = stockFlowRepository.findAll();
+        // 计算每个仓库的成本合计（从StockBatch批次记录计算：Σ(unitCost × availableQuantity))
+        List<StockBatch> allBatches = stockBatchRepository.findAll();
         
-        // 按仓库分组，计算每个仓库每个商品的最新结存成本
-        Map<Long, Map<Long, BigDecimal>> warehouseProductCostMap = new HashMap<>();
-        
-        // 先按时间排序计算每个商品的累计结存成本
-        allFlows.stream()
-            .sorted((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()))
-            .forEach(flow -> {
-                if (flow.getWarehouse() != null && flow.getProduct() != null) {
-                    Long warehouseId = flow.getWarehouse().getId();
-                    Long productId = flow.getProduct().getId();
-                    
-                    warehouseProductCostMap.computeIfAbsent(warehouseId, k -> new HashMap<>());
-                    Map<Long, BigDecimal> productCostMap = warehouseProductCostMap.get(warehouseId);
-                    
-                    // 累计结存成本
-                    BigDecimal currentCost = productCostMap.getOrDefault(productId, BigDecimal.ZERO);
-                    BigDecimal costChange = flow.getCostChange() != null ? flow.getCostChange() : BigDecimal.ZERO;
-                    productCostMap.put(productId, currentCost.add(costChange));
-                }
-            });
-        
-        // 计算每个仓库的总成本
         Map<Long, BigDecimal> warehouseCostMap = new HashMap<>();
-        for (Map.Entry<Long, Map<Long, BigDecimal>> entry : warehouseProductCostMap.entrySet()) {
-            Long warehouseId = entry.getKey();
-            BigDecimal totalCost = entry.getValue().values().stream()
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-            warehouseCostMap.put(warehouseId, totalCost);
+        for (StockBatch batch : allBatches) {
+            if (batch.getWarehouse() != null && batch.getUnitCost() != null && batch.getAvailableQuantity() != null) {
+                Long warehouseId = batch.getWarehouse().getId();
+                BigDecimal batchCost = batch.getUnitCost().multiply(BigDecimal.valueOf(batch.getAvailableQuantity()));
+                warehouseCostMap.merge(warehouseId, batchCost, BigDecimal::add);
+            }
         }
         
         // 构建返回数据

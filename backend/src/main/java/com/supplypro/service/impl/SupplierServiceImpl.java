@@ -241,6 +241,11 @@ public class SupplierServiceImpl implements SupplierService {
         if (!supplierRepository.existsById(id)) {
             throw new BusinessException(404, "Supplier not found");
         }
+        skuRepository.clearSupplierById(id);
+        supplierAccountRepository.deleteBySupplierId(id);
+        entityManager.createNativeQuery("DELETE FROM brand_supplier WHERE supplier_id = :supplierId")
+            .setParameter("supplierId", id)
+            .executeUpdate();
         supplierRepository.deleteById(id);
     }
 

@@ -22,13 +22,12 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
     @Override
     public List<ProductCategory> getCategoriesByParentId(String parentId) {
-        // If requesting root categories (parentId="0") and DB is empty, initialize mock data
-        if ("0".equals(parentId)) {
-            long count = categoryRepository.count();
-            if (count == 0) {
-                log.info("No categories found. Initializing mock data...");
-                // syncCategories();
+        if ("0".equals(parentId) || parentId == null) {
+            List<ProductCategory> rootCategories = categoryRepository.findByParentId("0");
+            if (rootCategories.isEmpty()) {
+                rootCategories = categoryRepository.findByParentIdIsNull();
             }
+            return rootCategories;
         }
         return categoryRepository.findByParentId(parentId);
     }

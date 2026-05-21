@@ -112,6 +112,7 @@ public class SecurityConfig {
             .antMatchers("/api/refund-orders/**").permitAll() // Refund orders API
             .antMatchers("/api/settlement-orders/**").permitAll() // Settlement orders API
             .antMatchers("/uploads/**").permitAll() // Allow static access to uploaded files
+            .antMatchers("/api/jd-categories/**").permitAll() // JD category sync API
             // Allow Actuator endpoints for monitoring
             .antMatchers("/actuator/**").permitAll()
             // Allow Swagger UI

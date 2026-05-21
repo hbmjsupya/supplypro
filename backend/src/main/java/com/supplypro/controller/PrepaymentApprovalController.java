@@ -221,7 +221,11 @@ public class PrepaymentApprovalController {
             }
         }
 
-        pa.setAppliedAmount(new BigDecimal(payload.get("appliedAmount").toString()));
+        BigDecimal appliedAmount = new BigDecimal(payload.get("appliedAmount").toString());
+        if (appliedAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Charge amount must be positive");
+        }
+        pa.setAppliedAmount(appliedAmount);
 
         if (payload.get("payerName") != null) {
             pa.setPayerName((String) payload.get("payerName"));
@@ -501,6 +505,11 @@ public class PrepaymentApprovalController {
         
         if (newReceived.compareTo(BigDecimal.ZERO) < 0) {
             throw new RuntimeException("红冲金额不能大于已上传成本票金额");
+        }
+        
+        if (amount.compareTo(BigDecimal.ZERO) > 0 && newReceived.compareTo(pa.getCostInvoiceAmount()) > 0) {
+            BigDecimal uncollected = pa.getCostInvoiceAmount().subtract(pa.getCostInvoiceReceived());
+            throw new RuntimeException("上传金额不能大于未收金额 ¥" + String.format("%.2f", uncollected));
         }
         
         pa.setCostInvoiceReceived(newReceived);

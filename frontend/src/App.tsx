@@ -114,7 +114,7 @@ const App: React.FC = () => {
            <Route path="/supply-chain/purchase-order/create" element={<PurchaseOrderCreate />} />
            {/* Inbound Creation Route */}
            <Route path="/supply-chain/purchase-order/create-inbound" element={<InboundOrderCreate />} />
-           <Route path="/supply-chain/purchase-order/detail/:id" element={<PurchaseOrderDetail />} />
+           <Route path="/supply-chain/purchase-order/detail/:id?" element={<PurchaseOrderDetail />} />
            <Route path="/supply-chain/purchase-order/logistics/:id" element={<PurchaseOrderLogistics />} />
            
            <Route path="/supply-chain/price-adjustment" element={<PriceAdjustmentList />} />
@@ -132,9 +132,9 @@ const App: React.FC = () => {
           <Route path="/supply-chain/warehouse" element={<WarehouseList />} />
           <Route path="/supply-chain/warehouse-product" element={<WarehouseProductList />} />
           <Route path="/supply-chain/inbound" element={<InboundOrderList />} />
-          <Route path="/supply-chain/inbound/detail/:id" element={<InboundOrderDetail />} />
+          <Route path="/supply-chain/inbound/detail/:id?" element={<InboundOrderDetail />} />
           <Route path="/supply-chain/outbound" element={<OutboundOrderList />} />
-          <Route path="/supply-chain/outbound/detail/:id" element={<OutboundOrderDetail />} />
+          <Route path="/supply-chain/outbound/detail/:id?" element={<OutboundOrderDetail />} />
           <Route path="/supply-chain/outbound/logistics/:id" element={<OutboundOrderLogistics />} />
           <Route path="/supply-chain/stock-flow" element={<StockFlowList />} />
           <Route path="/supply-chain/inventory-report" element={<InventoryReport />} />

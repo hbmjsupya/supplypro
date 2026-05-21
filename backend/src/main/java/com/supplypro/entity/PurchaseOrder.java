@@ -186,6 +186,10 @@ public class PurchaseOrder {
         if (this.payableAmount != null) {
             return this.payableAmount;
         }
+        // 供应商承担时，应结金额为0
+        if ("SUPPLIER".equals(this.costType)) {
+            return BigDecimal.ZERO;
+        }
         // 商品应结金额 = 采购单成本（不含运费）
         // 运费单独结算，不纳入商品结算金额
         return this.totalAmount != null ? this.totalAmount : BigDecimal.ZERO;

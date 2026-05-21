@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Descriptions, Table, Tag, Button, Space, Breadcrumb, Divider, Spin, Result, message, Tooltip, Modal } from 'antd';
 import { EyeOutlined, CarOutlined, EditOutlined, CheckOutlined } from '@ant-design/icons';
-import { useNavigate, useParams } from 'react-router-dom';
-import { getOutboundOrderById, shipOutboundOrder, receiveOutboundOrder } from '../../services/warehouseService';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { getOutboundOrderById, getOutboundOrderByNo, shipOutboundOrder, receiveOutboundOrder } from '../../services/warehouseService';
 import LogisticsTracker from '../PurchaseOrder/components/LogisticsTracker';
 import ShipOrderModal from '../PurchaseOrder/components/ShipOrderModal';
 import PageDoc from '../../components/PageDoc';
@@ -16,6 +16,7 @@ import dayjs from 'dayjs';
 const OutboundOrderDetail: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const [modal, contextHolder] = Modal.useModal();
   
   const [loading, setLoading] = useState(false);
@@ -26,6 +27,30 @@ const OutboundOrderDetail: React.FC = () => {
   const logisticsTrackerRef = React.useRef<any>(null);
 
   const fetchOrder = async () => {
+    // 支持通过 ?no=Oxxx 参数查询
+    const no = searchParams.get('no');
+    if (no) {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await getOutboundOrderByNo(no);
+        if (res && res.id) {
+          // 查到ID后，跳转到带id的URL
+          navigate(`/supply-chain/outbound/detail/${res.id}`, { replace: true });
+          return;
+        } else {
+          setError('出库单不存在');
+          setLoading(false);
+          return;
+        }
+      } catch (err: any) {
+        console.error("Failed to fetch outbound order by no", err);
+        setError('出库单不存在');
+        setLoading(false);
+        return;
+      }
+    }
+
     if (id) {
       setLoading(true);
       setError(null);

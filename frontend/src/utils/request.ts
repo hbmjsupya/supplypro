@@ -31,6 +31,9 @@ request.interceptors.request.use(
 // Response interceptor
 request.interceptors.response.use(
   (response) => {
+    if (response.config.responseType === 'blob') {
+      return response.data;
+    }
     const res = response.data;
     // Match the ApiResponse structure from backend
     // If response has 'code' field, treat it as wrapped response

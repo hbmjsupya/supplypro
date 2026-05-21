@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Form, Input, InputNumber, Select, Radio, DatePicker, Row, Col, Upload, Button, message } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
-import { shipPurchaseOrder, updateLogistics } from '../../../services/purchaseOrderService';
+import { shipPurchaseOrder, updateLogistics, checkWaybill } from '../../../services/purchaseOrderService';
 import { shipOutboundOrder, updateOutboundOrderLogistics } from '../../../services/warehouseService';
 import { getLogisticsProviders, getLogisticsCompanies, LogisticsCompany } from '../../../services/logisticsService';
 import { LogisticsProvider } from '../../../types/logistics';
@@ -49,16 +49,19 @@ const ShipOrderModal: React.FC<ShipOrderModalProps> = ({ open, onCancel, onSucce
 
   useEffect(() => {
     if (open) {
-      // Fetch data only when modal opens
       getLogisticsProviders().then(setLogisticsProviders);
       getLogisticsCompanies().then(setLogisticsCompanies);
       
-      // Reset form and states
       form.resetFields();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDuplicateWarning(null);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsFeeDisabled(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsDriverInfoLocked(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLogisticsProviderLocked(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLogisticsCompanyLocked(false);
 
       if (order) {
@@ -196,6 +199,24 @@ const ShipOrderModal: React.FC<ShipOrderModalProps> = ({ open, onCancel, onSucce
         console.log('Form values:', values);
         console.log('shipNo value:', values.shipNo);
         console.log('shipType value:', values.shipType);
+        
+        const waybillNo = values.shipNo;
+        if (waybillNo) {
+            const deliveryType = values.shipType === 'Logistics' ? 'LOGISTICS' : 'SELF_DELIVERY';
+            const excludePurchaseNo = order?.poNo;
+            
+            const res = await checkWaybill(waybillNo, deliveryType, excludePurchaseNo);
+            const data = res as any;
+            
+            if (data.hasDuplicate) {
+                if (values.logisticsFee && values.logisticsFee > 0) {
+                    message.warning(`该运单号已在采购单 ${data.duplicatePurchaseNo} 中关联了运费，不可重复计费。运费将自动置为0。`);
+                    form.setFieldsValue({ logisticsFee: 0 });
+                    setLoading(true);
+                }
+            }
+        }
+        
         setLoading(true);
 
         const selectedSupplier = logisticsProviders.find((p: LogisticsProvider) => String(p.id) === String(values.logisticsSupplier));
@@ -206,6 +227,7 @@ const ShipOrderModal: React.FC<ShipOrderModalProps> = ({ open, onCancel, onSucce
         
         
         const selectedCompany = logisticsCompanies.find((c: LogisticsCompany) => c.code === values.shipCompany);
+        const logisticsCompanyCode = selectedCompany?.code || values.shipCompany;
         const logisticsCompanyName = selectedCompany?.name || values.shipCompany;
 
         let attachmentsJson = undefined;
@@ -234,6 +256,7 @@ const ShipOrderModal: React.FC<ShipOrderModalProps> = ({ open, onCancel, onSucce
             expectedArrival: values.expectedArrival ? values.expectedArrival.format('YYYY-MM-DDTHH:mm:ss') : undefined,
             shippedAt: values.shippedAt ? values.shippedAt.format('YYYY-MM-DDTHH:mm:ss') : undefined,
             logisticsSupplierName,
+            logisticsCompanyCode,
             logisticsCompanyName,
             shipNo: values.shipNo,
             shipType: values.shipType,

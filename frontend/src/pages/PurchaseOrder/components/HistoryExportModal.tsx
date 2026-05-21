@@ -43,7 +43,7 @@ const HistoryExportModal: React.FC<HistoryExportModalProps> = ({ open, onCancel 
   const handleDownload = async (record: DeliveryExportRecord) => {
     setDownloadingId(record.id);
     try {
-      await downloadDeliveryExportRecord(record.id);
+      await downloadDeliveryExportRecord(record.id, record.fileName);
       message.success('下载成功');
     } catch (error: any) {
       console.error('Download failed:', error);
@@ -98,15 +98,15 @@ const HistoryExportModal: React.FC<HistoryExportModalProps> = ({ open, onCancel 
     },
     {
       title: '导出时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
+      dataIndex: 'exportedAt',
+      key: 'exportedAt',
       width: '20%',
       render: (time: string) => <Text style={{ fontSize: '12px' }}>{formatTimeSmart(time)}</Text>
     },
     {
       title: '操作人',
-      dataIndex: 'createdBy',
-      key: 'createdBy',
+      dataIndex: 'exportedBy',
+      key: 'exportedBy',
       width: '15%',
       render: (text: string) => <Text style={{ fontSize: '12px' }}>{text}</Text>
     },

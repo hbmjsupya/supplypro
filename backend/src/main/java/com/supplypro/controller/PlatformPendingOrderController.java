@@ -461,7 +461,7 @@ public class PlatformPendingOrderController {
         String[] platforms = {"京东", "淘宝", "拼多多", "抖音", "快手", null, null};
         String[] remarks = {"加急", "常规", "批量采购", "样品采购", null, null, null};
         
-        int orderCount = 15;
+        int orderCount = 50;
         
         for (int i = 0; i < orderCount; i++) {
             PlatformPendingOrder order = new PlatformPendingOrder();

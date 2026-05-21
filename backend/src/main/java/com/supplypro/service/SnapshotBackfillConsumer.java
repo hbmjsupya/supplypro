@@ -7,10 +7,12 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Profile;
 import java.io.IOException;
 
 @Service
 @Slf4j
+@Profile("!dev && !local")
 public class SnapshotBackfillConsumer {
 
     @Autowired

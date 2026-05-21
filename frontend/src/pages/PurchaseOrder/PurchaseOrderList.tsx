@@ -229,7 +229,7 @@ const PurchaseOrderList: React.FC = () => {
       // Clear status if clicking "All" (no status arg) OR clicking the same status again (toggle off)
       if (!status || prev.status === status) {
         const newParams = { ...prev, page: 0 };
-        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+         
         delete (newParams as Record<string, unknown>).status;
         return newParams;
       } else {
@@ -287,7 +287,7 @@ const PurchaseOrderList: React.FC = () => {
           
           setExportCount({ total: dataList.length, excluded: pendingOrderIds.length });
           
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           const templateData = dataList
               .filter((po: any) => !pendingOrderIdSet.has(po.id))
               .map((po: any) => {
@@ -376,7 +376,7 @@ const PurchaseOrderList: React.FC = () => {
               const poNos = jsonData.map((row: any) => row['采购单号']).filter(Boolean);
               
               // 从后端获取采购单信息进行校验
-              let poDataMap: Map<string, any> = new Map();
+              const poDataMap: Map<string, any> = new Map();
               try {
                   const poRes = await getPurchaseOrders({ page: 0, size: 1000 });
                   const poList = (poRes as any).content || (poRes as any).records || [];
@@ -716,7 +716,7 @@ const PurchaseOrderList: React.FC = () => {
             setLoading(false);
         }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [params, errorCount]);
 
   // Removed logistics fetching effects as they are now in ShipOrderModal
@@ -803,7 +803,7 @@ const PurchaseOrderList: React.FC = () => {
           const updated = { 
                 ...o, 
                 status: 'Shipped' as const,
-                shippingStatus: 'Shipped' as 'Shipped',
+                shippingStatus: 'Shipped' as const,
                 trackingNumber: payload.shipNo,
                 shipNo: payload.shipNo,
                 logisticsCompany: payload.shipCompany,
@@ -1498,7 +1498,7 @@ const PurchaseOrderList: React.FC = () => {
         open={shipModalOpen} 
         onCancel={() => setShipModalOpen(false)}
         onSuccess={handleShipSuccess}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         order={currentShipOrder ? {
             ...currentShipOrder,
             id: Number(currentShipOrder.key),

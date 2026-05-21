@@ -126,8 +126,8 @@ const SupplierSettlementList: React.FC = () => {
         // If server returns empty, I'll show mock data for demo (client-side paged).
         // BUT, the infinite loop was caused by `useEffect` dependency on `pagination`.
         
-        let finalData = mappedServiceData;
-        let finalTotal = total;
+        const finalData = mappedServiceData;
+        const finalTotal = total;
         
         setData(finalData);
         // Update pagination state, but ensure it doesn't trigger useEffect loop

@@ -269,11 +269,16 @@ const StockFlowList: React.FC = () => {
                 if (val.startsWith('RC')) {
                   url = `/supply-chain/price-adjustment/detail/${val}`;
                 } else if (val.startsWith('IN')) {
-                  url = `/supply-chain/inbound?inboundNo=${val}`;
-                } else if (val.startsWith('OUT')) {
-                  url = `/supply-chain/outbound?bizNo=${val}`;
-                } else if (val.startsWith('PO') || val.startsWith('C')) {
-                  url = `/supply-chain/purchase-order?keyword=${val}`;
+                  url = `/supply-chain/inbound/detail?no=${val}`;
+                } else if (val.startsWith('O')) {
+                  // 出库单编号格式如 O260519-25328，以O开头
+                  url = `/supply-chain/outbound/detail?no=${val}`;
+                } else if (val.startsWith('C')) {
+                  // 采购单编号格式如 C202605191149001，以C开头
+                  url = `/supply-chain/purchase-order/detail?no=${val}`;
+                } else if (val.startsWith('PO')) {
+                  // 兼容旧格式
+                  url = `/supply-chain/purchase-order/detail?no=${val}`;
                 }
 
                 return url ? (

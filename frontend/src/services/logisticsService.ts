@@ -41,7 +41,7 @@ export const searchLogisticsCompanies = async (keyword: string): Promise<Logisti
 
 export const getLogisticsProviders = async (params?: any, activeOnly: boolean = true): Promise<LogisticsProvider[]> => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const defaultParams = activeOnly ? { status: 'ACTIVE', ...params } : params;
     const res: any = await request.get('/logistics', { params: defaultParams });
     return res.records || [];

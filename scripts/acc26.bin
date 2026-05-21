@@ -1,0 +1,1 @@
+{"code":200,"message":"Success","data":[{"id":3,"type":"COMPANY","name":"北京小米科技有限责任公司","bank":"中国农业银行股份有限公司","account":"1101010109200123456","bankId":2,"status":true,"isDefault":true},{"id":4,"type":"PERSONAL","name":"李建国","bank":"招商银行股份有限公司","account":"6225880123456789","bankId":null,"status":true,"isDefault":false}]}

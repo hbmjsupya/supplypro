@@ -105,6 +105,12 @@ public class BrandController {
     @PostMapping
     @OperationLog(module = "Brand", operation = "Create Brand")
     public ResponseEntity<Map<String, Object>> create(@RequestBody Brand brand) {
+        if (brand.getName() != null && brandRepository.findByName(brand.getName()) != null) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("code", 400);
+            errorResponse.put("message", "品牌名称已存在");
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
         Brand saved = brandRepository.save(brand);
         Map<String, Object> response = new HashMap<>();
         response.put("code", 200);
@@ -118,7 +124,16 @@ public class BrandController {
     public ResponseEntity<Map<String, Object>> update(@PathVariable long id, @RequestBody Brand brand) {
         return brandRepository.findById(id)
                 .map(existing -> {
-                    existing.setName(brand.getName());
+                    if (brand.getName() != null) {
+                        Brand existingWithName = brandRepository.findByName(brand.getName());
+                        if (existingWithName != null && !existingWithName.getId().equals(id)) {
+                            Map<String, Object> errorResponse = new HashMap<>();
+                            errorResponse.put("code", 400);
+                            errorResponse.put("message", "品牌名称已存在");
+                            return ResponseEntity.badRequest().<Map<String, Object>>body(errorResponse);
+                        }
+                        existing.setName(brand.getName());
+                    }
                     existing.setTrademarkNo(brand.getTrademarkNo());
                     if (brand.getIcon() != null) {
                         existing.setIcon(brand.getIcon());

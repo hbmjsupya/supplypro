@@ -67,28 +67,21 @@ public class InventoryController {
         
         Page<StockBatch> pageResult = stockBatchRepository.findAll(spec, PageRequest.of(page, size));
         
-        // 计算每个商品的最后结存成本（从StockFlow流水记录计算）
-        List<StockFlow> allFlows = stockFlowRepository.findAll();
-        
-        // 按仓库+商品+规格分组，计算每个商品的最后结存成本
+        // 计算每个商品规格的结存成本（从StockBatch批次记录计算：Σ(unitCost × availableQuantity))
         Map<String, BigDecimal> productCostMap = new HashMap<>();
         
-        allFlows.stream()
-            .sorted((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()))
-            .forEach(flow -> {
-                if (flow.getWarehouse() != null && flow.getProduct() != null) {
-                    String warehouseCodeKey = flow.getWarehouse().getCode();
-                    Long productId = flow.getProduct().getId();
-                    String specNameKey = flow.getSpecName() != null ? flow.getSpecName() : "-";
-                    
-                    // 构建唯一键：仓库code + 商品ID + 规格名称
-                    String key = warehouseCodeKey + "_" + productId + "_" + specNameKey;
-                    
-                    BigDecimal currentCost = productCostMap.getOrDefault(key, BigDecimal.ZERO);
-                    BigDecimal costChange = flow.getCostChange() != null ? flow.getCostChange() : BigDecimal.ZERO;
-                    productCostMap.put(key, currentCost.add(costChange));
-                }
-            });
+        for (StockBatch batch : pageResult.getContent()) {
+            if (batch.getWarehouse() != null && batch.getProduct() != null && batch.getUnitCost() != null && batch.getAvailableQuantity() != null) {
+                String warehouseCodeKey = batch.getWarehouse().getCode();
+                Long productId = batch.getProduct().getId();
+                String specNameKey = batch.getSku() != null && batch.getSku().getSpecification() != null ? 
+                    batch.getSku().getSpecification() : "-";
+                String key = warehouseCodeKey + "_" + productId + "_" + specNameKey;
+                
+                BigDecimal batchCost = batch.getUnitCost().multiply(BigDecimal.valueOf(batch.getAvailableQuantity()));
+                productCostMap.merge(key, batchCost, BigDecimal::add);
+            }
+        }
         
         // 构建返回数据，添加结存成本字段
         List<Map<String, Object>> recordsWithCost = new ArrayList<>();

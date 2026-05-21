@@ -1302,6 +1302,18 @@ public class SettlementOrderController {
             return ResponseEntity.status(404).body(response);
         }
         
+        if (settlement.getStatus() == SettlementOrder.Status.SETTLED || 
+            settlement.getStatus() == SettlementOrder.Status.PAID) {
+            response.put("code", 403);
+            response.put("message", "已结算/已付款的结算单不可删除");
+            return ResponseEntity.status(403).body(response);
+        }
+        if (settlement.getStatus() != SettlementOrder.Status.PENDING) {
+            response.put("code", 403);
+            response.put("message", "仅待结算状态可删除");
+            return ResponseEntity.status(403).body(response);
+        }
+        
         // 记录删除信息
         String settlementNo = settlement.getSettlementNo();
         String relatedOrderNo = settlement.getRelatedOrderNo();
@@ -2812,6 +2824,13 @@ public class SettlementOrderController {
                     errorResponse.put("code", 400);
                     errorResponse.put("message", "无效的状态值");
                     return ResponseEntity.status(400).body(errorResponse);
+            }
+            
+            if (order.getStatus() == SettlementOrder.Status.PAID) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("code", 403);
+                errorResponse.put("message", "已付款结算单不可编辑");
+                return ResponseEntity.status(403).body(errorResponse);
             }
             
             order.setStatus(status);

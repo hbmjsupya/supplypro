@@ -1,0 +1,1 @@
+{"code":200,"message":"Success","data":[{"id":6,"type":"COMPANY","name":"三星电子(中国)投资有限公司","bank":"中信银行股份有限公司","account":"8110801012345678901","bankId":9,"status":true,"isDefault":true},{"id":7,"type":"COMPANY","name":"三星电子(中国)投资有限公司","bank":"中国银行股份有限公司","account":"3210801012345678","bankId":null,"status":true,"isDefault":false}]}

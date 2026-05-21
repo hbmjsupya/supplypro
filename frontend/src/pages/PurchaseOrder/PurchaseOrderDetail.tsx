@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, Descriptions, Table, Tag, Button, Space, Breadcrumb, Divider, Modal, Form, Input, Row, Col, message, Upload, Statistic, InputNumber, Radio, DatePicker, Select, Spin, Tooltip, Result, Avatar, Image } from 'antd';
 import { UploadOutlined, UserOutlined, FileOutlined, DownloadOutlined, EyeOutlined, PaperClipOutlined, FilePdfOutlined, FileImageOutlined, FileWordOutlined, FileExcelOutlined, DollarOutlined } from '@ant-design/icons';
-import { useNavigate, useParams } from 'react-router-dom';
-import { shipPurchaseOrder, getPurchaseOrderById, receivePurchaseOrder, cancelPurchaseOrder } from '../../services/purchaseOrderService';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { shipPurchaseOrder, getPurchaseOrderById, getPurchaseOrderByNo, receivePurchaseOrder, cancelPurchaseOrder } from '../../services/purchaseOrderService';
 import { getLogisticsProviders, getLogisticsCompanies } from '../../services/logisticsService';
 import { LogisticsProvider } from '../../types/logistics';
 import LogisticsTracker, { LogisticsTrackerRef } from './components/LogisticsTracker';
@@ -15,6 +15,7 @@ import { createSingleAdjustment, getAdjustmentItemsByPurchaseOrderId, CostAdjust
 const PurchaseOrderDetail: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   
   const [shipModalOpen, setShipModalOpen] = useState(false);
   const [form] = Form.useForm();
@@ -88,6 +89,29 @@ const PurchaseOrderDetail: React.FC = () => {
   const purchaseType = orderInfo ? (orderInfo.type === 'INBOUND' ? 'Inbound' : (orderInfo.type === 'JIT' ? 'SelfDistribute' : 'Dropship')) : '';
 
   const fetchOrder = async () => {
+        // 支持通过 ?no=POxxx 或 ?no=Cxxx 参数查询
+        const no = searchParams.get('no');
+         if (no) {
+             setLoading(true);
+             setError(null);
+             try {
+                 const res: any = await getPurchaseOrderByNo(no);
+                 if (res && res.id) {
+                     navigate(`/supply-chain/purchase-order/detail/${res.id}`, { replace: true });
+                     return true;
+                 } else {
+                     setError('采购单不存在');
+                     setLoading(false);
+                     return false;
+                 }
+             } catch (error: any) {
+                 console.error("Failed to fetch purchase order by no", error);
+                 setError('采购单不存在');
+                 setLoading(false);
+                 return false;
+             }
+         }
+
         if (id) {
             setLoading(true);
             setError(null);
@@ -188,8 +212,9 @@ const PurchaseOrderDetail: React.FC = () => {
     getLogisticsProviders().then(setLogisticsProviders);
     getLogisticsCompanies().then(setLogisticsCompanies);
     
-    if (id) {
-      getAdjustmentItemsByPurchaseOrderId(Number(id))
+    const resolvedId = id ? Number(id) : null;
+    if (resolvedId) {
+      getAdjustmentItemsByPurchaseOrderId(resolvedId)
         .then((data) => {
           setCostAdjustRecords(data || []);
         })
@@ -716,9 +741,15 @@ const PurchaseOrderDetail: React.FC = () => {
                   { title: '商品名称', dataIndex: 'productName' },
                   { title: '规格', dataIndex: 'specName' },
                   { title: '数量', dataIndex: 'quantity' },
-                  { title: '成本单价', dataIndex: 'unitPrice', render: (v) => `¥${(v || 0).toFixed(2)}` },
+                  { title: '成本单价', dataIndex: 'unitPrice', render: (v, r: any) => {
+                     const unitPrice = orderInfo.costType === 'SUPPLIER' ? 0 : (v || 0);
+                     return `¥${unitPrice.toFixed(2)}`;
+                  }},
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  { title: '合计', render: (_, r: any) => `¥${((r.quantity || 0) * (r.unitPrice || 0)).toFixed(2)}` }
+                  { title: '合计', render: (_, r: any) => {
+                     const unitPrice = orderInfo.costType === 'SUPPLIER' ? 0 : (r.unitPrice || 0);
+                     return `¥${((r.quantity || 0) * unitPrice).toFixed(2)}`;
+                  }}
                ]}
             />
          </Card>
@@ -777,7 +808,7 @@ const PurchaseOrderDetail: React.FC = () => {
                                         { title: '付款方', dataIndex: 'payerName', render: (v: string) => v || '平台' },
                                         { title: '收款方', render: () => orderInfo.supplier },
                                         { title: '发起结算时间', dataIndex: 'createdAt' },
-                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                         
                                         { title: '结算金额', dataIndex: 'totalAmount', render: (v: number) => `¥${(v || 0).toFixed(2)}` },
                                         { title: '备注', dataIndex: 'remark', render: (v: string) => v || '-' },
                                         { title: '审批状态', dataIndex: 'status', render: (text: string) => (
@@ -901,7 +932,6 @@ const PurchaseOrderDetail: React.FC = () => {
              </Card>
          )}
 
-         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
          {refundRecords.length > 0 && (
          <Card title="退款记录" variant="borderless">
              <Table 
@@ -1202,7 +1232,7 @@ const PurchaseOrderDetail: React.FC = () => {
         open={shipModalOpen} 
         onCancel={() => setShipModalOpen(false)}
         onSuccess={handleShipSuccess}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         order={orderInfo ? {
             ...orderInfo,
             id: Number(id),

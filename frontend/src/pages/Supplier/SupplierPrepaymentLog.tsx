@@ -52,7 +52,7 @@ const SupplierPrepaymentLog: React.FC = () => {
           prepaymentBalance: data.prepaymentBalance ?? 0,
         });
       }
-    } catch {}
+    } catch { /* ignore fetch errors */ }
   };
 
   const fetchLogs = async () => {

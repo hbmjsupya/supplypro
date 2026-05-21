@@ -15,9 +15,13 @@ export interface DeliveryExportRecord {
   id: number;
   fileName: string;
   fileUrl: string;
+  filePath: string;
+  fileSize: number;
   totalCount: number;
   successCount: number;
   failCount: number;
+  exportedAt: string;
+  exportedBy: string;
   createdAt: string;
   createdBy: string;
   status: 'SUCCESS' | 'PARTIAL' | 'FAILED';
@@ -107,15 +111,22 @@ export const getDeliveryExportRecords = (params?: { page?: number; size?: number
   }>('/delivery-export-records', { params });
 };
 
-export const downloadDeliveryExportRecord = async (id: number): Promise<void> => {
+export const downloadDeliveryExportRecord = async (id: number, fileName?: string): Promise<void> => {
   const response = await request.get<any, Blob>(`/delivery-export-records/${id}/download`, {
     responseType: 'blob'
   });
   
+  if (response.type === 'application/json') {
+    const text = await response.text();
+    const errorData = JSON.parse(text);
+    throw new Error(errorData.message || '下载失败');
+  }
+  
+  const downloadFileName = fileName || `delivery_export_${id}.zip`;
   const url = window.URL.createObjectURL(response);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `delivery_export_${id}.xlsx`;
+  link.download = downloadFileName;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

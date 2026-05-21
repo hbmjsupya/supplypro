@@ -128,6 +128,12 @@ public class SettlementService {
 
     @Transactional
     public SettlementOrder createSettlement(Long supplierId, List<Long> purchaseOrderIds, String createdBy) {
+        if (supplierId == null) {
+            throw new RuntimeException("supplierId cannot be null");
+        }
+        if (purchaseOrderIds == null || purchaseOrderIds.isEmpty()) {
+            throw new RuntimeException("orderIds cannot be null");
+        }
         Supplier supplier = supplierRepository.findById(supplierId)
                 .orElseThrow(() -> new RuntimeException("Supplier not found"));
 
@@ -259,7 +265,7 @@ public class SettlementService {
     public void batchDeletePurchaseSettlements(List<Long> settlementIds) {
         for (Long settlementId : settlementIds) {
             SettlementOrder settlement = settlementOrderRepository.findById(settlementId).orElse(null);
-            if (settlement != null) {
+            if (settlement == null) {
                 continue;
             }
             
@@ -291,7 +297,7 @@ public class SettlementService {
             
             // 恢复对应的待结算采购单
             PurchaseOrder purchaseOrder = purchaseOrderRepository.findById(pendingPurchaseOrderId).orElse(null);
-            if (purchaseOrder != null) {
+            if (purchaseOrder == null) {
                 continue;
             }
             

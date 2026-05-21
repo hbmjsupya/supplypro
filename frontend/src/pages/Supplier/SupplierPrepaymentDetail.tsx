@@ -66,7 +66,7 @@ const mapApiToDetail = (api: any): DetailData => {
       if (Array.isArray(parsed)) {
         attachments = parsed;
       }
-    } catch {}
+    } catch { /* ignore parse errors */ }
   }
 
   const logs: { time: string; user: string; action: string; comment: string }[] = [];
@@ -104,7 +104,7 @@ const mapApiToDetail = (api: any): DetailData => {
         if (Array.isArray(parsed)) {
           vouchers = parsed;
         }
-      } catch {}
+      } catch { /* ignore parse errors */ }
     }
     paymentRecords = [{
       slipNo: api.bankReceiptNo,
@@ -121,7 +121,7 @@ const mapApiToDetail = (api: any): DetailData => {
       if (Array.isArray(parsed)) {
         costInvoiceFiles = parsed;
       }
-    } catch {}
+    } catch { /* ignore parse errors */ }
   }
 
   const appliedAmount = Number(api.appliedAmount) || 0;
@@ -248,7 +248,7 @@ const SupplierPrepaymentDetail: React.FC = () => {
     
     setActionLoading(true);
     try {
-      let voucherUrls: string[] = [];
+      const voucherUrls: string[] = [];
       for (const fileItem of payVoucherFileList) {
         if (fileItem.originFileObj) {
           const uploadResult = await uploadFile(fileItem.originFileObj);

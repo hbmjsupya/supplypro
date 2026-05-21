@@ -15,7 +15,6 @@ interface AggregatedProduct {
     specName: string;
     qty: number;
     totalValue: number;
-    balanceCost: number;
     skuId: string;
     unitCost: number;
 }
@@ -100,14 +99,13 @@ const WarehouseProductList: React.FC = () => {
                   specName: b.specName,
                   qty: 0,
                   totalValue: 0,
-                  balanceCost: b.balanceCost || 0,
                   skuId: b.skuId,
                   unitCost: b.unitCost
               });
           }
           const item = goodsMap.get(key);
           item.qty += b.currentQty;
-          item.totalValue = item.balanceCost;
+          item.totalValue += b.unitCost * b.currentQty;
       });
       return Array.from(goodsMap.values());
   }, [inventory, filters, warehouseMap]);

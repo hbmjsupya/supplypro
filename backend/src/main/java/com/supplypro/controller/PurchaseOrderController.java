@@ -958,6 +958,16 @@ public class PurchaseOrderController {
     @Autowired
     private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
+    @GetMapping("/by-no")
+    @OperationLog(module = "PurchaseOrder", operation = "GetByNo")
+    public ResponseEntity<Map<String, Object>> getByNo(@RequestParam String no) {
+        PurchaseOrder po = purchaseOrderRepository.findByOrderNo(no);
+        if (po == null) {
+            return ResponseEntity.status(404).body(Map.of("code", 404, "message", "采购单不存在"));
+        }
+        return ResponseEntity.ok(Map.of("code", 200, "data", Map.of("id", po.getId(), "orderNo", po.getOrderNo())));
+    }
+
     @GetMapping("/{id:\\d+}")
     @OperationLog(module = "PurchaseOrder", operation = "GetById")
     public ResponseEntity<Map<String, Object>> getById(@PathVariable Long id) {

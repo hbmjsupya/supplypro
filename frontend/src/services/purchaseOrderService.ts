@@ -125,6 +125,11 @@ export const getPurchaseOrderById = (id: number) => {
   return request.get<any, PurchaseOrder>(`/purchase-orders/${id}`);
 };
 
+export const getPurchaseOrderByNo = (no: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return request.get<any, any>(`/purchase-orders/by-no`, { params: { no } });
+};
+
 export const createPurchaseOrder = (data: Partial<PurchaseOrder>) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return request.post<any, PurchaseOrder>('/purchase-orders', data);

@@ -594,7 +594,7 @@ const ProductPoolList: React.FC = () => {
           <Form.Item name="taxClass" label="税务分类" style={{ marginBottom: 0 }}>
               <Select placeholder="请选择" allowClear showSearch>
                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {taxOptions.map((t: any) => <Select.Option key={t.id} value={t.name}>{t.name}</Select.Option>)}
+                  {taxOptions.map((t: any) => <Select.Option key={t.id} value={t.categoryName}>{t.categoryName}</Select.Option>)}
               </Select>
           </Form.Item>
           <Form.Item name="status" label="状态" style={{ marginBottom: 0 }}>

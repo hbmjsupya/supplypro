@@ -15,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.MalformedURLException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -56,15 +58,29 @@ public class DeliveryExportRecordController {
             Resource resource = new UrlResource(filePath.toUri());
             
             if (resource.exists() && resource.isReadable()) {
+                String fileName = record.getFileName();
+                String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8.toString())
+                        .replaceAll("\\+", "%20");
+                
+                MediaType contentType = MediaType.APPLICATION_OCTET_STREAM;
+                if (fileName.toLowerCase().endsWith(".zip")) {
+                    contentType = MediaType.valueOf("application/zip");
+                } else if (fileName.toLowerCase().endsWith(".xlsx")) {
+                    contentType = MediaType.valueOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                }
+                
                 return ResponseEntity.ok()
-                        .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                        .contentType(contentType)
                         .header(HttpHeaders.CONTENT_DISPOSITION, 
-                                "attachment; filename=\"" + record.getFileName() + "\"")
+                                "attachment; filename=\"" + encodedFileName + "\"; filename*=UTF-8''" + encodedFileName)
+                        .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(resource.contentLength()))
                         .body(resource);
             } else {
                 return ResponseEntity.notFound().build();
             }
         } catch (MalformedURLException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }
     }

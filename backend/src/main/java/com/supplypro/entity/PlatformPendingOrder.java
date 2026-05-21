@@ -248,6 +248,9 @@ public class PlatformPendingOrder {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+        // 数量变更时重新计算 totalCost
+        this.totalCost = this.cost != null && this.quantity != null ?
+            this.cost.multiply(new BigDecimal(this.quantity)) : BigDecimal.ZERO;
     }
 
     public BigDecimal getCost() {

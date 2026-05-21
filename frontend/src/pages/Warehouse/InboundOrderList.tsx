@@ -254,7 +254,7 @@ const InboundOrderList: React.FC = () => {
     setPageSize(newSize);
     const filters = filterForm.getFieldsValue();
     const cleanFilters = Object.fromEntries(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         Object.entries(filters).filter(([_, v]) => v !== undefined && v !== null && v !== '')
     );
     loadData(cleanFilters, newPage, newSize);

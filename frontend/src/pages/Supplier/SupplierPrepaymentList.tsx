@@ -186,7 +186,7 @@ const SupplierPrepaymentList: React.FC = () => {
         }
       }
 
-      let costInvoiceFiles: any[] = [];
+      const costInvoiceFiles: any[] = [];
       if (hasInvoiceFile && hasInvoiceAmount) {
         for (const fileItem of newInvoiceFileList) {
           if (fileItem.originFileObj) {

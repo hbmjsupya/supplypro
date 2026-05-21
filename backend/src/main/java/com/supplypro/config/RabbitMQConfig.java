@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
 @Configuration
+@Profile("!dev && !local")
 public class RabbitMQConfig {
 
     public static final String EXCHANGE_NAME = "product.exchange";

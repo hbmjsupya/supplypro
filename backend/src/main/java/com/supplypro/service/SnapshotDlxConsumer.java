@@ -6,11 +6,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Profile;
 
 import java.io.IOException;
 
 @Service
 @Slf4j
+@Profile("!dev && !local")
 public class SnapshotDlxConsumer {
 
     @RabbitListener(queues = RabbitMQConfig.SNAPSHOT_DLX_QUEUE)

@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.stream.Collectors;
 
 @Service
-@Profile("!dev")
+@Profile("!dev && !local")
 public class ProductSyncConsumer {
 
     @Autowired
