@@ -204,9 +204,61 @@ public class DeliveryOrderImportServiceImpl implements DeliveryOrderImportServic
                                po.getStatus() == PurchaseOrder.Status.RECEIVED);
             
             if (hasShippedOrReceived) {
-                // 如果物流单号已存在于已发货/已收货采购单，跳过校验
-                // 后续checkTrackingNumberHistory方法会处理物流信息代入
-                logger.info("物流单号[{}]已存在于已发货/已收货采购单，跳过导入文件内一致性校验", trackingNumber);
+                logger.info("物流单号[{}]已存在于已发货/已收货采购单，仍执行导入文件内费用校验", trackingNumber);
+                
+                int feeGreaterThanZeroCount = 0;
+                for (DeliveryOrderImportDTO dto : group) {
+                    BigDecimal fee = dto.getFee();
+                    if (fee != null && fee.compareTo(BigDecimal.ZERO) > 0) {
+                        feeGreaterThanZeroCount++;
+                    }
+                }
+                
+                PurchaseOrder primaryExisting = existingOrders.stream()
+                    .filter(p -> p.getStatus() == PurchaseOrder.Status.SHIPPED || p.getStatus() == PurchaseOrder.Status.RECEIVED)
+                    .sorted((p1, p2) -> {
+                        BigDecimal fee1 = p1.getLogisticsFee() != null ? p1.getLogisticsFee() : BigDecimal.ZERO;
+                        BigDecimal fee2 = p2.getLogisticsFee() != null ? p2.getLogisticsFee() : BigDecimal.ZERO;
+                        int feeCompare = fee2.compareTo(fee1);
+                        if (feeCompare != 0) return feeCompare;
+                        if (p1.getCreatedAt() == null && p2.getCreatedAt() == null) return 0;
+                        if (p1.getCreatedAt() == null) return 1;
+                        if (p2.getCreatedAt() == null) return -1;
+                        return p1.getCreatedAt().compareTo(p2.getCreatedAt());
+                    })
+                    .findFirst()
+                    .orElse(null);
+
+                if (primaryExisting != null) {
+                    BigDecimal existingFee = primaryExisting.getLogisticsFee() != null ? primaryExisting.getLogisticsFee() : BigDecimal.ZERO;
+                    if (existingFee.compareTo(BigDecimal.ZERO) > 0 && feeGreaterThanZeroCount > 0) {
+                        String errorMsg = String.format("物流单号[%s]已关联采购单[%s]已有运费%.2f元，不允许再录入运费（应填0）", 
+                            trackingNumber, primaryExisting.getOrderNo(), existingFee.doubleValue());
+                        for (DeliveryOrderImportDTO dto : group) {
+                            BigDecimal dtoFee = dto.getFee() != null ? dto.getFee() : BigDecimal.ZERO;
+                            if (dtoFee.compareTo(BigDecimal.ZERO) > 0) {
+                                dto.setSuccess(false);
+                                dto.setErrorMessage(dto.getErrorMessage() != null 
+                                    ? dto.getErrorMessage() + "; " + errorMsg 
+                                    : errorMsg);
+                            }
+                        }
+                    }
+                }
+                
+                if (feeGreaterThanZeroCount > 1) {
+                    String errorMsg = String.format("物流单号[%s]存在多条记录物流费用大于0，仅允许一条记录物流费用大于0", trackingNumber);
+                    for (DeliveryOrderImportDTO dto : group) {
+                        BigDecimal dtoFee = dto.getFee() != null ? dto.getFee() : BigDecimal.ZERO;
+                        if (dtoFee.compareTo(BigDecimal.ZERO) > 0) {
+                            dto.setSuccess(false);
+                            dto.setErrorMessage(dto.getErrorMessage() != null 
+                                ? dto.getErrorMessage() + "; " + errorMsg 
+                                : errorMsg);
+                        }
+                    }
+                }
+                
                 continue;
             }
             
@@ -453,7 +505,6 @@ public class DeliveryOrderImportServiceImpl implements DeliveryOrderImportServic
     }
 
     private void validateDeliveryInfoAll(DeliveryOrderImportDTO dto, String deliveryMethod, ValidationResult validation) {
-        // 首先检查物流单号是否已存在于已发货/已收货采购单（适用于所有配送方式）
         String trackingNo = dto.getTrackingNumber();
         if (trackingNo != null && !trackingNo.trim().isEmpty()) {
             List<PurchaseOrder> existingOrders = purchaseOrderRepository.findByTrackingNumber(trackingNo.trim());
@@ -463,9 +514,8 @@ public class DeliveryOrderImportServiceImpl implements DeliveryOrderImportServic
                                !po.getOrderNo().equals(dto.getOrderNo()));
             
             if (hasShippedOrReceived) {
-                // 物流单号已存在于已发货/已收货采购单，跳过所有物流信息校验
-                // 后续checkTrackingNumberHistory方法会处理物流信息代入
-                logger.info("物流单号[{}]已存在于已发货/已收货采购单，跳过所有物流信息校验", trackingNo);
+                logger.info("物流单号[{}]已存在于已发货/已收货采购单，执行一致性校验", trackingNo);
+                validateConsistencyWithExistingOrders(dto, existingOrders, validation);
                 return;
             }
         }
@@ -496,6 +546,79 @@ public class DeliveryOrderImportServiceImpl implements DeliveryOrderImportServic
                 validation.addError("配送方式为自配送时，联系电话为必填项");
             }
         }
+    }
+
+    private void validateConsistencyWithExistingOrders(DeliveryOrderImportDTO dto, List<PurchaseOrder> existingOrders, ValidationResult validation) {
+        PurchaseOrder primaryExisting = existingOrders.stream()
+            .filter(p -> !p.getOrderNo().equals(dto.getOrderNo().trim()))
+            .filter(p -> p.getStatus() == PurchaseOrder.Status.SHIPPED || p.getStatus() == PurchaseOrder.Status.RECEIVED)
+            .sorted((p1, p2) -> {
+                BigDecimal fee1 = p1.getLogisticsFee() != null ? p1.getLogisticsFee() : BigDecimal.ZERO;
+                BigDecimal fee2 = p2.getLogisticsFee() != null ? p2.getLogisticsFee() : BigDecimal.ZERO;
+                int feeCompare = fee2.compareTo(fee1);
+                if (feeCompare != 0) return feeCompare;
+                if (p1.getCreatedAt() == null && p2.getCreatedAt() == null) return 0;
+                if (p1.getCreatedAt() == null) return 1;
+                if (p2.getCreatedAt() == null) return -1;
+                return p1.getCreatedAt().compareTo(p2.getCreatedAt());
+            })
+            .findFirst()
+            .orElse(null);
+
+        if (primaryExisting == null) {
+            return;
+        }
+
+        String trackingNo = dto.getTrackingNumber().trim();
+        String existingOrderNo = primaryExisting.getOrderNo();
+        BigDecimal existingFee = primaryExisting.getLogisticsFee() != null ? primaryExisting.getLogisticsFee() : BigDecimal.ZERO;
+
+        if (dto.getLogisticsCompany() != null && !dto.getLogisticsCompany().trim().isEmpty()) {
+            String existingCompany = primaryExisting.getLogisticsCompany();
+            if (existingCompany != null && !existingCompany.trim().isEmpty() 
+                && !isStringEquals(dto.getLogisticsCompany().trim(), existingCompany.trim())) {
+                validation.addError(String.format(
+                    "物流单号[%s]已关联采购单[%s]的物流公司为[%s]，与导入的物流公司[%s]不一致",
+                    trackingNo, existingOrderNo, existingCompany, dto.getLogisticsCompany().trim()));
+            }
+        }
+
+        if (dto.getLogisticsSupplier() != null && !dto.getLogisticsSupplier().trim().isEmpty()) {
+            String existingSupplier = null;
+            if (primaryExisting.getLogisticsProvider() != null) {
+                existingSupplier = primaryExisting.getLogisticsProvider().getName();
+            }
+            if (existingSupplier != null && !existingSupplier.trim().isEmpty() 
+                && !isStringEquals(dto.getLogisticsSupplier().trim(), existingSupplier.trim())) {
+                validation.addError(String.format(
+                    "物流单号[%s]已关联采购单[%s]的物流供应商为[%s]，与导入的物流供应商[%s]不一致",
+                    trackingNo, existingOrderNo, existingSupplier, dto.getLogisticsSupplier().trim()));
+            }
+        }
+
+        if (existingFee.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal importFee = dto.getFee() != null ? dto.getFee() : BigDecimal.ZERO;
+            if (importFee.compareTo(BigDecimal.ZERO) > 0) {
+                validation.addError(String.format(
+                    "物流单号[%s]已关联采购单[%s]已有运费%.2f元，不允许再录入运费（应填0）",
+                    trackingNo, existingOrderNo, existingFee.doubleValue()));
+            }
+        }
+
+        if (dto.getDeliveryMethod() != null && !dto.getDeliveryMethod().trim().isEmpty()) {
+            String normalizedDeliveryMethod = dto.getDeliveryMethodNormalized();
+            String existingDeliveryMethod = primaryExisting.getDeliveryMethod();
+            if (normalizedDeliveryMethod != null && existingDeliveryMethod != null 
+                && !normalizedDeliveryMethod.equals(existingDeliveryMethod)) {
+                String importMethodChinese = convertDeliveryMethodToChinese(normalizedDeliveryMethod);
+                String existingMethodChinese = convertDeliveryMethodToChinese(existingDeliveryMethod);
+                validation.addError(String.format(
+                    "物流单号[%s]已关联采购单[%s]的配送方式为[%s]，与导入的配送方式[%s]不一致",
+                    trackingNo, existingOrderNo, existingMethodChinese, importMethodChinese));
+            }
+        }
+
+        logger.info("物流单号[{}]一致性校验完成，错误数: {}", trackingNo, validation.hasErrors() ? "有" : "无");
     }
 
     private void checkTrackingNumberHistory(DeliveryOrderImportDTO dto, String deliveryMethod) {
@@ -561,7 +684,13 @@ public class DeliveryOrderImportServiceImpl implements DeliveryOrderImportServic
         BigDecimal originalFee = dto.getFee();
         
         dto.setLogisticsCompany(duplicate.getLogisticsCompany());
-        dto.setLogisticsSupplier(duplicate.getLogisticsSupplierName());
+        if (duplicate.getLogisticsProvider() != null) {
+            dto.setLogisticsSupplier(duplicate.getLogisticsProvider().getName());
+            logger.info("代入物流供应商: {} (从LogisticsProvider实体获取)", duplicate.getLogisticsProvider().getName());
+        } else {
+            dto.setLogisticsSupplier(null);
+            logger.info("原采购单无LogisticsProvider，物流供应商置空");
+        }
         dto.setDeliverer(duplicate.getDeliverer());
         dto.setDelivererPhone(duplicate.getDelivererPhone());
         dto.setPlateNumber(duplicate.getPlateNumber());
@@ -651,9 +780,9 @@ public class DeliveryOrderImportServiceImpl implements DeliveryOrderImportServic
                         LogisticsCompany matchedCompany = findLogisticsCompanyByKdnInfo(kdnShipperName, kdnShipperCode);
                         if (matchedCompany != null) {
                             String originalCompany = logisticsCompany;
-                            logisticsCompany = matchedCompany.getName();
-                            logger.info("快递鸟返回物流公司: {} (code={}), 原始物流公司: {}, 使用快递鸟数据", 
-                                kdnShipperName, kdnShipperCode, originalCompany);
+                            logisticsCompany = matchedCompany.getCode();
+                            logger.info("快递鸟返回物流公司: {} (code={}), 原始物流公司: {}, 使用系统编码: {}", 
+                                kdnShipperName, kdnShipperCode, originalCompany, logisticsCompany);
                             
                             if (!isStringEquals(originalCompany, logisticsCompany)) {
                                 dto.setWarningMessage(dto.getWarningMessage() != null 
@@ -661,13 +790,20 @@ public class DeliveryOrderImportServiceImpl implements DeliveryOrderImportServic
                                     : "物流公司已根据快递鸟API更新");
                             }
                         } else {
-                            logisticsCompany = kdnShipperName;
-                            String codeInfo = kdnShipperCode != null ? "(" + kdnShipperCode + ")" : "";
-                            logger.warn("快递鸟返回物流公司: {} {}, 未在系统物流公司库中找到匹配，直接使用返回名称", 
-                                kdnShipperName, codeInfo);
+                            if (kdnShipperCode != null && !kdnShipperCode.trim().isEmpty()) {
+                                logisticsCompany = kdnShipperCode;
+                                logger.warn("快递鸟返回物流公司: {} (code={}), 未在系统物流公司库中找到匹配，使用快递鸟编码: {}", 
+                                    kdnShipperName, kdnShipperCode, kdnShipperCode);
+                            } else {
+                                logisticsCompany = kdnShipperName;
+                                logger.warn("快递鸟返回物流公司: {}, 未在系统物流公司库中找到匹配且无编码，直接使用返回名称", 
+                                    kdnShipperName);
+                            }
                             
+                            String codeDisplay = (kdnShipperCode != null && !kdnShipperCode.trim().isEmpty()) 
+                                ? "(" + kdnShipperCode + ")" : "";
                             String warningMsg = String.format("物流公司[%s%s]未在系统库中匹配，已使用快递鸟返回名称", 
-                                kdnShipperName, codeInfo);
+                                kdnShipperName, codeDisplay);
                             dto.setWarningMessage(dto.getWarningMessage() != null 
                                 ? dto.getWarningMessage() + "; " + warningMsg 
                                 : warningMsg);

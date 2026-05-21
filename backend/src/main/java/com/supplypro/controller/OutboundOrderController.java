@@ -349,8 +349,7 @@ public class OutboundOrderController {
                 flow.setWarehouse(firstBatch.getWarehouse());
                 flow.setProduct(firstBatch.getProduct());
                 flow.setSku(firstBatch.getSku());
-                flow.setSpecName(firstBatch.getSku() != null && firstBatch.getSku().getSpecification() != null ? 
-                    firstBatch.getSku().getSpecification() : "-");
+                flow.setSpecName(firstBatch.getSku() != null ? (firstBatch.getSku().getName() != null ? firstBatch.getSku().getName() : firstBatch.getSku().getSpecification()) : "-");
                 flow.setBatchNo(null);
                 flow.setFlowType(StockFlow.FlowType.OUTBOUND);
                 flow.setQuantity(-totalQuantity);
@@ -429,8 +428,7 @@ public class OutboundOrderController {
                     flow.setWarehouse(warehouse);
                     flow.setProduct(product);
                     flow.setSku(firstBatch.getSku());
-                    flow.setSpecName(firstBatch.getSku() != null && firstBatch.getSku().getSpecification() != null ? 
-                        firstBatch.getSku().getSpecification() : "-");
+                    flow.setSpecName(firstBatch.getSku() != null ? (firstBatch.getSku().getName() != null ? firstBatch.getSku().getName() : firstBatch.getSku().getSpecification()) : "-");
                     flow.setBatchNo(null);
                     flow.setFlowType(StockFlow.FlowType.OUTBOUND);
                     flow.setQuantity(-totalQuantity);
@@ -516,7 +514,7 @@ public class OutboundOrderController {
                 flow.setWarehouse(warehouse);
                 flow.setProduct(product);
                 flow.setSku(batch.getSku());
-                flow.setSpecName(batch.getSku() != null && batch.getSku().getSpecification() != null ? batch.getSku().getSpecification() : "-");
+                flow.setSpecName(batch.getSku() != null ? (batch.getSku().getName() != null ? batch.getSku().getName() : batch.getSku().getSpecification()) : "-");
                 flow.setBatchNo(batch.getBatchNo());
                 flow.setFlowType(StockFlow.FlowType.OUTBOUND);
                 flow.setQuantity(-toDeduct);

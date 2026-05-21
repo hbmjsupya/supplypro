@@ -81,8 +81,7 @@ public class StockFlowController {
         sql.append("sf.reason, sf.operator, sf.unit_cost, sf.total_cost, sf.cost_change, sf.created_at, ");
         
         // 使用窗口函数计算累计数量
-        sql.append("SUM(CASE WHEN sf.flow_type IN ('INBOUND', 'ADJUSTMENT_IN', 'RETURN_IN') THEN sf.quantity ");
-        sql.append("WHEN sf.flow_type IN ('OUTBOUND', 'ADJUSTMENT_OUT') THEN -sf.quantity ELSE 0 END) ");
+        sql.append("SUM(sf.quantity) ");
         sql.append("OVER (PARTITION BY ").append(partitionBy).append(" ORDER BY sf.created_at, sf.id) AS balance_quantity, ");
         
         // 使用窗口函数计算累计成本

@@ -22,6 +22,7 @@ import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -42,7 +43,8 @@ public class KuaidiNiaoService {
     private static final String E_BUSINESS_ID = "1887192";
     private static final String API_KEY = "f2d48681-9a52-4c68-a113-33c9e6b96d7b";
     private static final String REQ_URL = "https://api.kdniao.com/api/dist";
-    private static final String REQUEST_TYPE = "8001"; // Real-time query
+    private static final String REQUEST_TYPE_8001 = "8001";
+    private static final String REQUEST_TYPE_8002 = "8002";
 
     // Mapping for common logistics companies (fallback)
     private static final Map<String, String> SHIPPER_CODE_MAP = new HashMap<>();
@@ -104,82 +106,132 @@ public class KuaidiNiaoService {
     }
 
     public LogisticsResponse track(String shipperCode, String logisticCode) {
-        // 0. Mock/Fallback for Testing or Fault Tolerance
         if (logisticCode.startsWith("MOCK") || logisticCode.startsWith("SF_TEST")) {
             return getMockResponse(shipperCode, logisticCode);
         }
 
-        String responseBody = null;
-        try {
-        // 1. Prepare Request Data (JSON)
         String mappedShipperCode = getShipperCode(shipperCode);
         Map<String, String> requestDataMap = new HashMap<>();
         requestDataMap.put("ShipperCode", mappedShipperCode);
         requestDataMap.put("LogisticCode", logisticCode);
-        // CustomerName is required by KuaidiNiao for some carriers like SF Express (顺丰)
-        // Usually it's the last 4 digits of the sender's or receiver's phone number
-        // As a fallback/default for this fix, we provide a placeholder or dynamic retrieval
-        requestDataMap.put("CustomerName", "0000"); // Standard placeholder for SF if actual phone is unavailable
-        
-        String requestData = objectMapper.writeValueAsString(requestDataMap);
+        requestDataMap.put("CustomerName", "0000");
 
-            // 2. Generate Signature
+        return sendRequest(requestDataMap, REQUEST_TYPE_8001, shipperCode, logisticCode);
+    }
+
+    public LogisticsResponse trackAuto(String logisticCode) {
+        if (logisticCode.startsWith("MOCK") || logisticCode.startsWith("SF_TEST")) {
+            return getMockResponse("", logisticCode);
+        }
+
+        Map<String, String> requestDataMap = new HashMap<>();
+        requestDataMap.put("LogisticCode", logisticCode);
+
+        log.info("Sending Auto-Identify Logistics Request (8002) to KuaidiNiao: LogisticCode={}", logisticCode);
+
+        LogisticsResponse response = sendRequest(requestDataMap, REQUEST_TYPE_8002, "", logisticCode);
+
+        if (response.isSuccess() && response.getShipperCode() != null && !response.getShipperCode().isEmpty()) {
+            log.info("8002 auto-identified ShipperCode: {} for LogisticCode: {}", response.getShipperCode(), logisticCode);
+            enrichShipperNameFromDB(response);
+        }
+
+        return response;
+    }
+
+    public LogisticsResponse trackWithFallback(String shipperCode, String logisticCode) {
+        if (logisticCode == null || logisticCode.trim().isEmpty()) {
+            return getMockResponse(shipperCode, logisticCode);
+        }
+
+        if (logisticCode.startsWith("MOCK") || logisticCode.startsWith("SF_TEST")) {
+            return getMockResponse(shipperCode, logisticCode);
+        }
+
+        boolean hasValidShipperCode = shipperCode != null && !shipperCode.trim().isEmpty();
+
+        if (hasValidShipperCode) {
+            LogisticsResponse response = track(shipperCode, logisticCode);
+            if (response.isSuccess() && response.getTraces() != null && !response.getTraces().isEmpty()) {
+                return response;
+            }
+            if (response.isSuccess() && ("0".equals(response.getState()) || response.getState() == null)) {
+                log.info("8001 query returned no traces, trying 8002 auto-identify for LogisticCode: {}", logisticCode);
+            } else if (!response.isSuccess()) {
+                log.info("8001 query failed (reason: {}), trying 8002 auto-identify for LogisticCode: {}", response.getReason(), logisticCode);
+            } else {
+                return response;
+            }
+        }
+
+        log.info("Falling back to 8002 auto-identify for LogisticCode: {}, original ShipperCode: {}", logisticCode, shipperCode);
+        return trackAuto(logisticCode);
+    }
+
+    private void enrichShipperNameFromDB(LogisticsResponse response) {
+        if (response == null || response.getShipperCode() == null) return;
+
+        String shipperCode = response.getShipperCode();
+        Optional<LogisticsCompany> companyOpt = logisticsCompanyRepository.findById(shipperCode);
+        if (companyOpt.isPresent()) {
+            response.setShipperName(companyOpt.get().getName());
+        } else {
+            List<LogisticsCompany> byKdnCode = logisticsCompanyRepository.findByKdnCode(shipperCode);
+            if (byKdnCode != null && !byKdnCode.isEmpty()) {
+                response.setShipperName(byKdnCode.get(0).getName());
+            }
+        }
+    }
+
+    private LogisticsResponse sendRequest(Map<String, String> requestDataMap, String requestType, String fallbackShipperCode, String logisticCode) {
+        String responseBody = null;
+        try {
+            String requestData = objectMapper.writeValueAsString(requestDataMap);
+
             String dataSign = encrypt(requestData, API_KEY, "UTF-8");
 
-            // 3. Prepare Form Data
             MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
             params.add("RequestData", requestData);
             params.add("EBusinessID", E_BUSINESS_ID);
-            params.add("RequestType", REQUEST_TYPE);
+            params.add("RequestType", requestType);
             params.add("DataSign", dataSign);
-            params.add("DataType", "2"); // JSON
+            params.add("DataType", "2");
 
-            // 4. Send Request
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
             HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(params, headers);
 
-            log.info("Sending Logistics Request to KuaidiNiao: ShipperCode={} (Mapped: {}), LogisticCode={}", shipperCode, mappedShipperCode, logisticCode);
-            
+            log.info("Sending Logistics Request to KuaidiNiao: RequestType={}, ShipperCode={}, LogisticCode={}", 
+                requestType, requestDataMap.get("ShipperCode"), logisticCode);
+
             ResponseEntity<String> responseEntity = restTemplate.postForEntity(REQ_URL, requestEntity, String.class);
             responseBody = responseEntity.getBody();
 
-            log.info("Logistics Raw Response: {}", responseBody);
+            log.info("Logistics Raw Response ({}): {}", requestType, responseBody);
 
             if (responseEntity.getStatusCode() != HttpStatus.OK) {
                 log.error("External API HTTP Error: {}", responseEntity.getStatusCode());
-                // Fallback on HTTP Error
-                return getMockResponse(shipperCode, logisticCode);
+                return getMockResponse(fallbackShipperCode, logisticCode);
             }
 
             if (responseBody == null || responseBody.isEmpty()) {
                 log.error("External API returned empty body");
-                return getMockResponse(shipperCode, logisticCode);
+                return getMockResponse(fallbackShipperCode, logisticCode);
             }
 
-            // 5. Parse Response
             LogisticsResponse response = objectMapper.readValue(responseBody, LogisticsResponse.class);
-            
-            // Check for business level failure
+
             if (!response.isSuccess()) {
-                log.warn("Logistics API Business Failure: {}", response.getReason());
-                
-                // Comprehensive Fallback Strategy:
-                // If API fails for ANY reason (invalid key, signature, quota, no track), 
-                // fallback to Mock data to ensure the user sees *something* in the demo/test environment.
-                // In production, we might want to be stricter, but for this "Repair" task, availability is key.
-                LogisticsResponse mock = getMockResponse(shipperCode, logisticCode);
-                mock.setReason("API Error: " + response.getReason() + " (Showing Mock Data)");
-                return mock;
+                log.warn("Logistics API Business Failure ({}): {}", requestType, response.getReason());
+                return response;
             }
-            
+
             return response;
 
         } catch (Exception e) {
-            log.error("Failed to query logistics info. Raw Response: {}", responseBody, e);
-            // Fallback on Exception (Timeout, Parse Error, etc.)
-            LogisticsResponse mock = getMockResponse(shipperCode, logisticCode);
+            log.error("Failed to query logistics info ({}). Raw Response: {}", requestType, responseBody, e);
+            LogisticsResponse mock = getMockResponse(fallbackShipperCode, logisticCode);
             mock.setReason("System Error: " + e.getMessage() + " (Showing Mock Data)");
             return mock;
         }

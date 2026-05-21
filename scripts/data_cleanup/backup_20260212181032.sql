@@ -1,5 +1,0 @@
--- Backup generated at 2026-02-12 18:10:32.747316
-SET FOREIGN_KEY_CHECKS=0;
-INSERT INTO products (id, sku_code, name, status, created_at, updated_at, tax_class, tax_rate, tax_code, logistics_template, promo_file, brand_id, brand_zh_name, brand_en_name, brand_logo, category_code, category_name, category_version, tax_effective_date, created_by, updated_by, type, default_supplier_id, created_type) VALUES (5, 'SKU005', 'ABS工程塑料颗粒', 'ACTIVE', '2026-02-12 09:08:35', '2026-02-12 10:10:32', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'NORMAL', NULL, 'import');
-INSERT INTO products (id, sku_code, name, status, created_at, updated_at, tax_class, tax_rate, tax_code, logistics_template, promo_file, brand_id, brand_zh_name, brand_en_name, brand_logo, category_code, category_name, category_version, tax_effective_date, created_by, updated_by, type, default_supplier_id, created_type) VALUES (6, 'SKU006', '瓦楞纸箱', 'ACTIVE', '2026-02-12 09:08:35', '2026-02-12 10:10:32', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'NORMAL', NULL, 'import');
-SET FOREIGN_KEY_CHECKS=1;

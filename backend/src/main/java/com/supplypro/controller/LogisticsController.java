@@ -115,17 +115,17 @@ public class LogisticsController {
             OutboundOrder primaryOO = outboundOrders.get(0);
             logger.info("Found {} OutboundOrders for TrackingNo: {}. Primary OO: {}", outboundOrders.size(), trackingNo, primaryOO.getOutboundNo());
             
-            String shipperCode = primaryOO.getLogisticsCompany();
+            String rawOOCompany = primaryOO.getLogisticsCompany();
+            String shipperCode = getShipperCodeFromCompany(rawOOCompany);
             String logisticCode = trackingNo;
             
+            LogisticsResponse response;
             if (shipperCode == null || shipperCode.isEmpty()) {
-                logger.warn("Logistics info missing (Shipper Code) for OutboundOrder: {}", primaryOO.getOutboundNo());
-                result.put("code", 404);
-                result.put("message", "Logistics company info missing for this order");
-                return ResponseEntity.status(404).body(result);
+                logger.info("Logistics company missing for OutboundOrder: {}, trying 8002 auto-identify", primaryOO.getOutboundNo());
+                response = getLogisticsInfo("", logisticCode, false);
+            } else {
+                response = getLogisticsInfo(shipperCode, logisticCode, false);
             }
-            
-            LogisticsResponse response = getLogisticsInfo(shipperCode, logisticCode, false);
             
             Map<String, Object> enrichedData = enrichOutboundOrderResponse(response, outboundOrders);
 
@@ -141,17 +141,17 @@ public class LogisticsController {
             RefundOrder primaryRO = refundOrders.get(0);
             logger.info("Found {} RefundOrders for TrackingNo: {}. Primary RO: {}", refundOrders.size(), trackingNo, primaryRO.getRefundNo());
             
-            String shipperCode = primaryRO.getLogisticsCompany();
+            String rawROCompany = primaryRO.getLogisticsCompany();
+            String shipperCode = getShipperCodeFromCompany(rawROCompany);
             String logisticCode = trackingNo;
             
+            LogisticsResponse response;
             if (shipperCode == null || shipperCode.isEmpty()) {
-                logger.warn("Logistics info missing (Shipper Code) for RefundOrder: {}", primaryRO.getRefundNo());
-                result.put("code", 404);
-                result.put("message", "物流公司信息缺失");
-                return ResponseEntity.status(404).body(result);
+                logger.info("Logistics company missing for RefundOrder: {}, trying 8002 auto-identify", primaryRO.getRefundNo());
+                response = getLogisticsInfo("", logisticCode, false);
+            } else {
+                response = getLogisticsInfo(shipperCode, logisticCode, false);
             }
-            
-            LogisticsResponse response = getLogisticsInfo(shipperCode, logisticCode, false);
             
             Map<String, Object> enrichedData = new HashMap<>();
             if (response != null) {
@@ -200,20 +200,19 @@ public class LogisticsController {
             return ResponseEntity.ok(result);
         }
 
-        String shipperCode = primaryPO.getLogisticsCompany();
+        String rawPOCompany = primaryPO.getLogisticsCompany();
+        String shipperCode = getShipperCodeFromCompany(rawPOCompany);
         String logisticCode = trackingNo;
         
-        logger.info("Found {} POs for TrackingNo: {}. Primary PO: {}, Shipper: {}", pos.size(), trackingNo, primaryPO.getOrderNo(), shipperCode);
+        logger.info("Found {} POs for TrackingNo: {}. Primary PO: {}, Shipper: {} (mapped from: {})", pos.size(), trackingNo, primaryPO.getOrderNo(), shipperCode, rawPOCompany);
 
+        LogisticsResponse response;
         if (shipperCode == null || shipperCode.isEmpty()) {
-            logger.warn("Logistics info missing (Shipper Code) for PO: {}", primaryPO.getOrderNo());
-            result.put("code", 404);
-            result.put("message", "Logistics company info missing for this order");
-            return ResponseEntity.status(404).body(result);
+            logger.info("Logistics company missing for PO: {}, trying 8002 auto-identify", primaryPO.getOrderNo());
+            response = getLogisticsInfo("", logisticCode, false);
+        } else {
+            response = getLogisticsInfo(shipperCode, logisticCode, false);
         }
-        
-        // 2. Call KuaidiNiao Service (or get from cache)
-        LogisticsResponse response = getLogisticsInfo(shipperCode, logisticCode, false);
         
         // 3. Enrich Response with Associated POs
         Map<String, Object> enrichedData = enrichResponse(response, pos);
@@ -244,13 +243,14 @@ public class LogisticsController {
             logger.info("Purchase Order {} is cancelled, skipping logistics tracking", po.getOrderNo());
             result.put("code", 200);
             result.put("message", "订单已取消，无需查询物流信息");
-            result.put("data", Map.of(
-                "traces", java.util.Collections.emptyList(),
-                "state", "CANCELLED",
-                "shipperName", po.getLogisticsCompany() != null ? po.getLogisticsCompany() : "-",
-                "logisticCode", po.getTrackingNumber() != null ? po.getTrackingNumber() : "-",
-                "isCancelled", true
-            ));
+            Map<String, Object> cancelData = new HashMap<>();
+            cancelData.put("success", true);
+            cancelData.put("traces", java.util.Collections.emptyList());
+            cancelData.put("state", "CANCELLED");
+            cancelData.put("shipperName", po.getLogisticsCompany() != null ? po.getLogisticsCompany() : "-");
+            cancelData.put("logisticCode", po.getTrackingNumber() != null ? po.getTrackingNumber() : "-");
+            cancelData.put("isCancelled", true);
+            result.put("data", cancelData);
             return ResponseEntity.ok(result);
         }
 
@@ -281,25 +281,32 @@ public class LogisticsController {
             return ResponseEntity.ok(result);
         }
 
-        String shipperCode = po.getLogisticsCompany();
+        String rawLogisticsCompany = po.getLogisticsCompany();
         String logisticCode = po.getTrackingNumber();
-        logger.info("Found PO: {}, Shipper: {}, TrackingNo: {}", po.getOrderNo(), shipperCode, logisticCode);
+        String shipperCode = getShipperCodeFromCompany(rawLogisticsCompany);
+        logger.info("Found PO: {}, Shipper: {} (mapped from: {}), TrackingNo: {}", po.getOrderNo(), shipperCode, rawLogisticsCompany, logisticCode);
 
-        if (shipperCode == null || shipperCode.isEmpty() || logisticCode == null || logisticCode.isEmpty()) {
-            logger.warn("Logistics info missing for PO: {}", po.getOrderNo());
+        if (logisticCode == null || logisticCode.isEmpty()) {
+            logger.warn("Tracking number missing for PO: {}", po.getOrderNo());
+            Map<String, Object> noInfoData = new HashMap<>();
+            noInfoData.put("success", true);
+            noInfoData.put("traces", java.util.Collections.emptyList());
+            noInfoData.put("state", "NO_INFO");
+            noInfoData.put("shipperName", shipperCode != null ? shipperCode : "-");
+            noInfoData.put("logisticCode", "-");
             result.put("code", 200);
             result.put("message", "暂无物流信息");
-            result.put("data", Map.of(
-                "traces", java.util.Collections.emptyList(),
-                "state", "NO_INFO",
-                "shipperName", "-",
-                "logisticCode", "-"
-            ));
+            result.put("data", noInfoData);
             return ResponseEntity.ok(result);
         }
 
-        // 2. Call KuaidiNiao Service (or get from cache)
-        LogisticsResponse response = getLogisticsInfo(shipperCode, logisticCode, false);
+        LogisticsResponse response;
+        if (shipperCode == null || shipperCode.isEmpty()) {
+            logger.info("Logistics company missing for PO: {}, trying 8002 auto-identify", po.getOrderNo());
+            response = getLogisticsInfo("", logisticCode, false);
+        } else {
+            response = getLogisticsInfo(shipperCode, logisticCode, false);
+        }
         
         // 3. Enrich Response with Associated POs (Find other POs with same tracking number)
         List<PurchaseOrder> relatedPOs = purchaseOrderRepository.findByTrackingNumber(logisticCode);
@@ -337,14 +344,15 @@ public class LogisticsController {
 
         if (trackingNo == null || trackingNo.isEmpty()) {
             logger.warn("Tracking number missing for Outbound Order: {}", oo.getOutboundNo());
+            Map<String, Object> noInfoData = new HashMap<>();
+            noInfoData.put("success", true);
+            noInfoData.put("traces", java.util.Collections.emptyList());
+            noInfoData.put("state", "NO_INFO");
+            noInfoData.put("shipperName", logisticsCompany != null ? logisticsCompany : "-");
+            noInfoData.put("logisticCode", "-");
             result.put("code", 200);
             result.put("message", "暂无物流信息");
-            result.put("data", Map.of(
-                "traces", java.util.Collections.emptyList(),
-                "state", "NO_INFO",
-                "shipperName", logisticsCompany != null ? logisticsCompany : "-",
-                "logisticCode", "-"
-            ));
+            result.put("data", noInfoData);
             return ResponseEntity.ok(result);
         }
 
@@ -515,7 +523,6 @@ public class LogisticsController {
         String cacheKey = "logistics:" + shipperCode + ":" + logisticCode;
         LogisticsResponse cachedResponse = null;
         
-        // If forceRefresh is true, skip cache
         if (!forceRefresh) {
             try {
                 cachedResponse = (LogisticsResponse) redisTemplate.opsForValue().get(cacheKey);
@@ -530,10 +537,9 @@ public class LogisticsController {
             return cachedResponse;
         }
 
-        // Call API with Monitoring
         LogisticsResponse response;
         try {
-            response = kuaidiNiaoService.track(shipperCode, logisticCode);
+            response = kuaidiNiaoService.trackWithFallback(shipperCode, logisticCode);
         } catch (LogisticsException e) {
             checkFailureRate();
             throw e; 
@@ -548,7 +554,7 @@ public class LogisticsController {
              checkFailureRate();
         }
 
-        enrichShipperName(response, shipperCode);
+        enrichShipperName(response, response.getShipperCode() != null ? response.getShipperCode() : shipperCode);
 
         if (response.isSuccess() && response.getTraces() != null && !response.getTraces().isEmpty()) {
             try {
