@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Input, Select, Space, Tag, message, Row, Col, Form, Dropdown, Modal } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { PlusOutlined, EditOutlined, StopOutlined, CheckCircleOutlined, EyeOutlined, ExportOutlined, AccountBookOutlined, DownOutlined, BankOutlined, DeleteOutlined, WarningOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, StopOutlined, CheckCircleOutlined, EyeOutlined, ExportOutlined, AccountBookOutlined, DownOutlined, BankOutlined, WarningOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PageDoc from '../../components/PageDoc';
 import SearchFormLayout from '../../components/SearchFormLayout';
 import { useExport } from '../../utils/exportUtils';
-import { getSuppliers, SupplierDTO, deleteAllSuppliers } from '../../services/supplierService';
+import { getSuppliers, SupplierDTO } from '../../services/supplierService';
 import request from '../../utils/request';
 
 interface SupplierDataType {
@@ -112,25 +112,6 @@ const SupplierList: React.FC = () => {
       console.error(error);
       message.error('状态更新失败');
     }
-  };
-
-  const handleDeleteAll = () => {
-      Modal.confirm({
-          title: '确认清空数据',
-          content: '确定要删除所有供应商数据吗？此操作不可恢复！',
-          okText: '确认删除',
-          okType: 'danger',
-          cancelText: '取消',
-          onOk: async () => {
-              try {
-                  await deleteAllSuppliers();
-                  message.success('所有供应商数据已清空');
-                  fetchSuppliers(1, pagination.pageSize);
-              } catch {
-                  message.error('清空数据失败');
-              }
-          }
-      });
   };
 
   // Filtered data is now handled by backend via showExpiring state triggering fetch
@@ -362,9 +343,6 @@ const SupplierList: React.FC = () => {
             </Button>
          </Space>
          <Space>
-            <Button danger icon={<DeleteOutlined />} onClick={handleDeleteAll}>
-                清空数据
-            </Button>
             <Button icon={<ExportOutlined />} onClick={handleExport} loading={exporting}>
                 {exporting ? `导出中 ${progress}%` : '批量导出'}
             </Button>

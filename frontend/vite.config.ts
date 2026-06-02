@@ -20,10 +20,18 @@ export default defineConfig({
     }
   },
   server: {
+    host: '0.0.0.0',
+    port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080', // Backend local URL (Updated to 8080 for local run)
+        target: 'http://localhost:8080',
         changeOrigin: true,
+        timeout: 300000,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            proxyReq.setHeader('Connection', 'keep-alive');
+          });
+        },
       },
       '/uploads': {
         target: 'http://localhost:8080',

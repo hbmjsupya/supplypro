@@ -100,7 +100,7 @@ class SettlementOrderControllerTest {
         when(purchaseOrderRepository.findByOrderNoIn(anyList()))
             .thenReturn(Collections.singletonList(po));
 
-        ResponseEntity<Map<String, Object>> response = controller.getPendingDeliverySettlements(null, null, null, null, null, 0, 10);
+        ResponseEntity<Map<String, Object>> response = controller.getPendingDeliverySettlements(null, null, null, null, null, null, 0, 10);
         List<Map<String, Object>> list = (List<Map<String, Object>>) response.getBody().get("records");
         
         assertEquals(1, list.size());
@@ -147,7 +147,7 @@ class SettlementOrderControllerTest {
         when(purchaseOrderRepository.findByOrderNoIn(anyList()))
             .thenReturn(Collections.singletonList(po));
 
-        ResponseEntity<Map<String, Object>> response = controller.getPendingDeliverySettlements(null, null, null, null, null, 0, 10);
+        ResponseEntity<Map<String, Object>> response = controller.getPendingDeliverySettlements(null, null, null, null, null, null, 0, 10);
         List<Map<String, Object>> list = (List<Map<String, Object>>) response.getBody().get("records");
         
         assertEquals(1, list.size());

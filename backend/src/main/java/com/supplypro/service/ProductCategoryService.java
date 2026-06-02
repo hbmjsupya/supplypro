@@ -24,5 +24,9 @@ public interface ProductCategoryService {
     /**
      * Initialize or sync mock data (simulating Suning API).
      */
+    List<ProductCategory> getAllCategories();
+
     void syncCategories();
+
+    ProductCategory createCategory(String name, String parentId, int level, String fullPath);
 }

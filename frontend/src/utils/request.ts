@@ -86,7 +86,7 @@ request.interceptors.response.use(
         const data = error.response.data as any;
         const serverMsg = data?.message || '系统内部错误，请联系管理员';
         console.error('Backend 500 Error:', data);
-        message.error(serverMsg);
+        message.error({ content: serverMsg, duration: 10 });
         return Promise.reject(error);
     }
 

@@ -180,11 +180,12 @@ public class FlowIntegrationTest {
         System.out.println(">>> SO Created: " + soId);
 
         // 3.2 Create Outbound Order
-        OutboundOrder outbound = new OutboundOrder();
-        outbound.setSalesOrder(savedSO); // Only ID is strictly needed but logic might need object
-        outbound.setWarehouse(warehouse);
+        Map<String, Object> outboundPayload = new java.util.HashMap<>();
+        outboundPayload.put("salesOrderId", soId);
+        outboundPayload.put("warehouseId", warehouse.getId());
+        outboundPayload.put("sourceType", "SALES");
         
-        ResponseEntity<Map<String, Object>> outboundResp = outboundOrderController.create(outbound);
+        ResponseEntity<Map<String, Object>> outboundResp = outboundOrderController.create(outboundPayload);
         Assertions.assertEquals(200, outboundResp.getBody().get("code"));
         OutboundOrder savedOutbound = (OutboundOrder) outboundResp.getBody().get("data");
         Long outboundId = savedOutbound.getId();

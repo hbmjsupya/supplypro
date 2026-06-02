@@ -7,6 +7,7 @@ import com.supplypro.repository.InboundOrderRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +38,15 @@ public class DataIntegrityMonitorService {
     
     @PersistenceContext
     private EntityManager entityManager;
+
+    @Value("${supplypro.snapshot.retention.max-age-days:90}")
+    private int snapshotMaxAgeDays;
+
+    @Value("${supplypro.snapshot.retention.auto-cleanup-enabled:false}")
+    private boolean snapshotAutoCleanupEnabled;
+
+    @Value("${supplypro.snapshot.retention.min-keep-per-order:2}")
+    private int minKeepPerOrder;
 
     /**
      * Run data integrity checks every hour.
@@ -186,16 +196,108 @@ public class DataIntegrityMonitorService {
             logger.error("[DataMonitor] ALERT: Found {} Inbound Orders with missing relations (PO or Warehouse). IDs: {}",
                     orphanIds.size(), orphanIds);
         }
-        
+
         // Check 2: Inbound No format
         List<Long> invalidNoIds = allInbounds.stream()
                 .filter(io -> io.getInboundNo() == null || !io.getInboundNo().startsWith("IN"))
                 .map(InboundOrder::getId)
                 .collect(Collectors.toList());
-                
+
         if (!invalidNoIds.isEmpty()) {
             logger.warn("[DataMonitor] WARNING: Found {} Inbound Orders with non-standard Inbound No. IDs: {}",
                     invalidNoIds.size(), invalidNoIds);
+        }
+    }
+
+    /**
+     * Clean up old snapshots beyond the retention period.
+     * Runs daily at 3:00 AM. Controlled by supplypro.snapshot.retention.auto-cleanup-enabled.
+     *
+     * Safety guarantees:
+     * - Only runs when auto-cleanup-enabled is explicitly set to true
+     * - Always keeps the latest snapshot (is_latest = true) for each PO
+     * - Always keeps at least min-keep-per-order snapshots per PO regardless of age
+     * - Only deletes snapshots older than max-age-days
+     */
+    @Scheduled(cron = "0 0 3 * * ?")
+    @Transactional
+    public void cleanupOldSnapshots() {
+        if (!snapshotAutoCleanupEnabled) {
+            logger.debug("[DataMonitor] Snapshot auto-cleanup is disabled. Skipping.");
+            return;
+        }
+
+        if (snapshotMaxAgeDays <= 0) {
+            logger.info("[DataMonitor] Snapshot retention max-age-days is {} (<=0), auto-cleanup skipped.", snapshotMaxAgeDays);
+            return;
+        }
+
+        logger.info("[DataMonitor] Starting snapshot cleanup (maxAge: {} days, minKeepPerOrder: {})...",
+            snapshotMaxAgeDays, minKeepPerOrder);
+
+        try {
+            // Step 1: Find POs that have more than min-keep-per-order old snapshots
+            String findPosQuery =
+                "SELECT purchase_order_id, COUNT(*) as cnt " +
+                "FROM purchase_order_snapshots " +
+                "WHERE created_at < DATE_SUB(NOW(), INTERVAL :days DAY) " +
+                "AND is_latest = false " +
+                "GROUP BY purchase_order_id " +
+                "HAVING cnt > :minKeep";
+
+            javax.persistence.Query findQuery = entityManager.createNativeQuery(findPosQuery);
+            findQuery.setParameter("days", snapshotMaxAgeDays);
+            findQuery.setParameter("minKeep", (long) minKeepPerOrder);
+            @SuppressWarnings("unchecked")
+            List<Object[]> posWithOldSnapshots = findQuery.getResultList();
+
+            if (posWithOldSnapshots.isEmpty()) {
+                logger.info("[DataMonitor] No POs with excessive old snapshots. Cleanup skipped.");
+                return;
+            }
+
+            int totalDeleted = 0;
+            for (Object[] row : posWithOldSnapshots) {
+                Long poId = ((Number) row[0]).longValue();
+                Long oldCount = ((Number) row[1]).longValue();
+
+                // Step 2: Get IDs to KEEP (most recent min-keep-per-order for this PO)
+                String keepIdsQuery =
+                    "SELECT id FROM purchase_order_snapshots " +
+                    "WHERE purchase_order_id = :poId " +
+                    "ORDER BY created_at DESC LIMIT :minKeep";
+                javax.persistence.Query keepQuery = entityManager.createNativeQuery(keepIdsQuery);
+                keepQuery.setParameter("poId", poId);
+                keepQuery.setParameter("minKeep", minKeepPerOrder);
+                @SuppressWarnings("unchecked")
+                List<Number> keepIds = keepQuery.getResultList();
+
+                if (keepIds.isEmpty()) continue;
+
+                // Step 3: Delete old snapshots NOT in the keep list AND older than max-age-days
+                String deleteQuery =
+                    "DELETE FROM purchase_order_snapshots " +
+                    "WHERE purchase_order_id = :poId " +
+                    "AND created_at < DATE_SUB(NOW(), INTERVAL :days DAY) " +
+                    "AND is_latest = false " +
+                    "AND id NOT IN (:keepIds)";
+                javax.persistence.Query delQuery = entityManager.createNativeQuery(deleteQuery);
+                delQuery.setParameter("poId", poId);
+                delQuery.setParameter("days", snapshotMaxAgeDays);
+                delQuery.setParameter("keepIds", keepIds.stream().map(Number::longValue).collect(Collectors.toList()));
+                int deleted = delQuery.executeUpdate();
+
+                if (deleted > 0) {
+                    totalDeleted += deleted;
+                    logger.info("[DataMonitor] Cleaned {} old snapshots for PO {} (had {} old, kept {} most recent)",
+                        deleted, poId, oldCount, minKeepPerOrder);
+                }
+            }
+
+            logger.info("[DataMonitor] Snapshot cleanup completed. Total deleted: {} snapshots across {} POs.",
+                totalDeleted, posWithOldSnapshots.size());
+        } catch (Exception e) {
+            logger.error("[DataMonitor] Error during snapshot cleanup", e);
         }
     }
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Input, Space, Tag, Form, Row, Col, message, InputNumber, Select, Tooltip, Typography, Modal, Divider, Card } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { CheckOutlined, CloseOutlined, ExportOutlined, UndoOutlined, ExclamationCircleOutlined, ImportOutlined, UploadOutlined, HomeOutlined } from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, ExportOutlined, UndoOutlined, ExclamationCircleOutlined, ImportOutlined, UploadOutlined, HomeOutlined, PlusOutlined } from '@ant-design/icons';
 import PageDoc from '../../components/PageDoc';
 import SearchFormLayout from '../../components/SearchFormLayout';
 import type { RcFile } from 'antd/es/upload/interface';
@@ -78,6 +78,110 @@ const PlatformConfirmList: React.FC = () => {
     pageSizeOptions: ['10', '50', '100'],
     showTotal: (total: number) => `共 ${total} 条记录`
   });
+
+  // ---- Generate virtual platform order ----
+  const [generatingVirtual, setGeneratingVirtual] = useState(false);
+
+  const handleGenerateVirtualOrder = async () => {
+    setGeneratingVirtual(true);
+    try {
+      // Step 1: Fetch inventory from all warehouses
+      const invRes: any = await getInventoryBatches({ size: 500 });
+      const batches = invRes?.data?.content || invRes?.data?.records || invRes?.records || invRes?.content || [];
+      if (!batches.length) { message.warning('仓库中没有库存数据'); setGeneratingVirtual(false); return; }
+
+      // Step 2: Group inventory by product, find products with stock across warehouses
+      const productStock: Record<string, {
+        productId: number; productName: string; skuId: number; specName: string;
+        warehouseStocks: { warehouseId: number; warehouseName: string; warehouseCode: string; batchId: number; batchNo: string; qty: number; unitCost: number }[];
+        totalQty: number; uniqueWarehouses: number;
+      }> = {};
+
+      batches.forEach((b: any) => {
+        const available = (b.availableForShip != null) ? b.availableForShip : ((b.currentQty || 0) - (b.lockedQty || 0));
+        if (available <= 0) return;
+        const key = String(b.productId);
+        if (!productStock[key]) {
+          productStock[key] = {
+            productId: b.productId, productName: b.productName || b.skuName || '', skuId: b.skuId, specName: b.specName || '',
+            warehouseStocks: [], totalQty: 0, uniqueWarehouses: 0,
+          };
+        }
+        productStock[key].warehouseStocks.push({
+          warehouseId: b.warehouseId, warehouseName: b.warehouseName || '', warehouseCode: b.warehouseCode || '',
+          batchId: b.id, batchNo: b.batchNo || '', qty: available, unitCost: b.unitCost || 0,
+        });
+        productStock[key].totalQty += available;
+      });
+
+      // Count unique warehouses
+      Object.values(productStock).forEach(p => {
+        p.uniqueWarehouses = new Set(p.warehouseStocks.map(w => w.warehouseId)).size;
+      });
+
+      // Step 3: Pick products with multi-warehouse stock (≥2 warehouses, total qty ≥ 50)
+      const multiWareProducts = Object.values(productStock)
+        .filter(p => p.uniqueWarehouses >= 2 && p.totalQty >= 50)
+        .sort((a, b) => b.uniqueWarehouses - a.uniqueWarehouses);
+
+      if (multiWareProducts.length === 0) {
+        message.warning('没有找到满足分仓条件的产品（需要至少2个仓库有库存，总量≥50）');
+        setGeneratingVirtual(false); return;
+      }
+
+      // Pick a random product from top candidates
+      const picked = multiWareProducts[Math.floor(Math.random() * Math.min(5, multiWareProducts.length))];
+
+      // Step 4: Create platform pending orders — one per warehouse
+      const now = Date.now();
+      const baseOrderNo = `VP${now.toString(36).toUpperCase()}`;
+      let created = 0;
+
+      for (let wi = 0; wi < picked.warehouseStocks.length; wi++) {
+        const ws = picked.warehouseStocks[wi];
+        const orderQty = Math.min(ws.qty, Math.ceil(picked.totalQty / picked.warehouseStocks.length));
+
+        const orderData = {
+          orderNo: `${baseOrderNo}_${wi + 1}`,
+          orderType: 'OrderPurchase',
+          bizNo: `BIZ_${now}_${wi + 1}`,
+          thirdPartyNo: `TP_${now}_${wi + 1}`,
+          platformName: '虚拟平台',
+          platformOrderNo: `VP_ORDER_${now}`,
+          productId: picked.productId,
+          skuId: picked.skuId,
+          productName: picked.productName,
+          specName: picked.specName || '-',
+          quantity: orderQty,
+          cost: ws.unitCost,
+          totalCost: orderQty * ws.unitCost,
+          supplierId: null,
+          supplierName: '',
+          receiver: '虚拟客户',
+          address: `仓库[${ws.warehouseName || ws.warehouseCode}]直发`,
+          projectName: '虚拟分仓测试',
+          costType: 'Platform',
+          orderRemark: `自动生成-分仓出货 仓库${wi + 1}/${picked.warehouseStocks.length}`,
+          expectedReceiveTime: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+        };
+
+        try {
+          await request.post('/platform-pending-orders', orderData);
+          created++;
+        } catch (e: any) {
+          console.error('Failed to create order for warehouse', wi, e);
+        }
+      }
+
+      message.success(`已生成 ${created} 条虚拟订单（${picked.productName}，跨 ${picked.uniqueWarehouses} 个仓库分仓出货）`);
+      // Refresh data
+      window.location.reload();
+    } catch (e: any) {
+      message.error('生成虚拟数据失败：' + (e?.message || '未知错误'));
+    } finally {
+      setGeneratingVirtual(false);
+    }
+  };
 
   // Load data from API
   useEffect(() => {
@@ -884,7 +988,10 @@ const PlatformConfirmList: React.FC = () => {
              </Form.Item>
         </SearchFormLayout>
 
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+             <Button icon={<PlusOutlined />} type="primary" ghost onClick={handleGenerateVirtualOrder} loading={generatingVirtual}>
+                 {generatingVirtual ? '生成中...' : '新增虚拟分仓数据'}
+             </Button>
              <Space>
                 <Button icon={<ExportOutlined />} onClick={handleExport} loading={exporting}>
                     {exporting ? `导出中 ${progress}%` : '导出待确认清单'}

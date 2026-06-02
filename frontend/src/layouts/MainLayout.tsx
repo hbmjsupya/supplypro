@@ -13,7 +13,10 @@ import {
   DownloadOutlined,
   UploadOutlined,
   BarChartOutlined,
-  RollbackOutlined
+  RollbackOutlined,
+  RobotOutlined,
+  SwapOutlined,
+  SettingOutlined
 } from '@ant-design/icons';
 import { logout, getCurrentUser } from '../services/authService';
 
@@ -65,6 +68,15 @@ const MainLayout: React.FC = () => {
         { key: '/supply-chain/stock-flow', label: '仓库商品变动记录', icon: <FileTextOutlined /> },
         { key: '/supply-chain/inventory-report', label: '库存报表', icon: <BarChartOutlined /> },
       ]
+    },
+    {
+      key: 'ai-tools',
+      label: 'AI 工具',
+      icon: <RobotOutlined />,
+      children: [
+        { key: '/ai-tools/config', label: 'AI Key 配置', icon: <SettingOutlined /> },
+        { key: '/ai-tools/category-mapping', label: '分类比对工具', icon: <SwapOutlined /> },
+      ]
     }
   ];
 
@@ -94,11 +106,15 @@ const MainLayout: React.FC = () => {
       if (pathname.startsWith('/supply-chain/outbound')) return '/supply-chain/outbound';
       if (pathname.startsWith('/supply-chain/inventory-report')) return '/supply-chain/inventory-report';
 
+      // AI Tools Mapping
+      if (pathname.startsWith('/ai-tools/config')) return '/ai-tools/config';
+      if (pathname.startsWith('/ai-tools/category-mapping')) return '/ai-tools/category-mapping';
+
       return pathname;
   };
 
   const selectedKeys = [getSelectedKey(location.pathname)];
-  const openKeys = ['supply-chain', 'warehouse-management'];
+  const openKeys = ['supply-chain', 'warehouse-management', 'ai-tools'];
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -139,43 +155,46 @@ const MainLayout: React.FC = () => {
           collapsed={collapsed} 
           onCollapse={(value) => setCollapsed(value)} 
           theme="light" 
-          className="custom-scrollbar-hidden"
           style={{ 
             position: 'fixed',
             left: 0,
             top: 64,
             bottom: 0,
-            overflow: 'auto',
             boxShadow: '2px 0 8px 0 rgba(29,35,41,0.05)',
             zIndex: 99,
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
           }}
         >
           <style>{`
-            .custom-scrollbar-hidden::-webkit-scrollbar {
-              display: none;
-            }
-            .custom-scrollbar-hidden {
+            .menu-scroll-container {
+              height: 100%;
+              overflow-y: auto;
               -ms-overflow-style: none;
               scrollbar-width: none;
             }
-            .custom-scrollbar-hidden .ant-menu {
-              scrollbar-width: none;
-              -ms-overflow-style: none;
-            }
-            .custom-scrollbar-hidden .ant-menu::-webkit-scrollbar {
+            .menu-scroll-container::-webkit-scrollbar {
               display: none;
+            }
+            .menu-scroll-container .ant-menu {
+              height: auto !important;
+              overflow: visible !important;
+              max-height: none !important;
+            }
+            .menu-scroll-container .ant-menu-sub {
+              height: auto !important;
+              overflow: visible !important;
+              max-height: none !important;
             }
           `}</style>
-          <Menu
-            mode="inline"
-            defaultOpenKeys={openKeys}
-            selectedKeys={selectedKeys}
-            style={{ height: '100%', borderRight: 0 }}
-            items={menuItems}
-            onClick={({ key }) => navigate(key)}
-          />
+          <div className="menu-scroll-container">
+            <Menu
+              mode="inline"
+              defaultOpenKeys={openKeys}
+              selectedKeys={selectedKeys}
+              style={{ borderRight: 0 }}
+              items={menuItems}
+              onClick={({ key }) => navigate(key)}
+            />
+          </div>
         </Sider>
         
         {/* 主内容区域 - 独立滚动 */}

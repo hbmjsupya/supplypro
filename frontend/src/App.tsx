@@ -65,7 +65,12 @@ import SupplierPrepaymentSettlementDetail from './pages/Settlement/SupplierPrepa
 
 import Login from './pages/Login/Login';
 
+// AI Tools
+import AiConfig from './pages/AiTools/AiConfig';
+import CategoryMapping from './pages/AiTools/CategoryMapping';
+
 import ErrorBoundary from './components/ErrorBoundary';
+import ProtectedRoute from './components/ProtectedRoute';
 
 const App: React.FC = () => {
   return (
@@ -76,7 +81,11 @@ const App: React.FC = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<Navigate to="/supply-chain/product-pool" replace />} />
         
-        <Route element={<MainLayout />}>
+        <Route element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }>
            {/* Supply Chain Management */}
            <Route path="/supply-chain/brand" element={<BrandList />} />
            <Route path="/supply-chain/brand/add" element={<BrandDetail />} />
@@ -139,6 +148,9 @@ const App: React.FC = () => {
           <Route path="/supply-chain/stock-flow" element={<StockFlowList />} />
           <Route path="/supply-chain/inventory-report" element={<InventoryReport />} />
            
+          {/* AI Tools */}
+          <Route path="/ai-tools/config" element={<AiConfig />} />
+          <Route path="/ai-tools/category-mapping" element={<CategoryMapping />} />
         </Route>
       </Routes>
       </Router>

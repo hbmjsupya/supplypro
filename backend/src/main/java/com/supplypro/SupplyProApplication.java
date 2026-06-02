@@ -10,7 +10,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import java.util.TimeZone;
 import javax.annotation.PostConstruct;
 
-@SpringBootApplication
+@SpringBootApplication(exclude = {
+    org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchDataAutoConfiguration.class,
+    org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchRepositoriesAutoConfiguration.class,
+    org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration.class
+})
 @EnableScheduling
 @EnableAsync
 public class SupplyProApplication implements CommandLineRunner {

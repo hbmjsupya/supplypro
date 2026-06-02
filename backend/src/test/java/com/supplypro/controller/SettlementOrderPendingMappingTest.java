@@ -75,7 +75,7 @@ public class SettlementOrderPendingMappingTest {
         when(purchaseOrderRepository.findByOrderNoIn(any())).thenReturn(List.of(po));
 
         // Act
-        ResponseEntity<Map<String, Object>> response = settlementOrderController.getPendingDeliverySettlements(null, null, null, null, null, 0, 10);
+        ResponseEntity<Map<String, Object>> response = settlementOrderController.getPendingDeliverySettlements(null, null, null, null, null, null, 0, 10);
 
         // Assert
         Map<String, Object> body = response.getBody();

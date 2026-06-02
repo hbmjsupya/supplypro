@@ -53,6 +53,11 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
     }
 
     @Override
+    public List<ProductCategory> getAllCategories() {
+        return categoryRepository.findAll();
+    }
+
+    @Override
     @Transactional
     public void syncCategories() {
         // Mock data generation logic simulating Suning API structure
@@ -91,7 +96,20 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
         log.info("Initialized {} mock categories.", allCategories.size());
     }
 
+    @Override
+    public ProductCategory createCategory(String name, String parentId, int level, String fullPath) {
+        ProductCategory c = createCategoryInternal(name, parentId, level, 0);
+        if (fullPath != null && !fullPath.isBlank()) {
+            c.setFullPath(fullPath);
+        }
+        return categoryRepository.save(c);
+    }
+
     private ProductCategory createCategory(String name, String parentId, Integer level, Integer sortOrder) {
+        return createCategoryInternal(name, parentId, level, sortOrder);
+    }
+
+    private ProductCategory createCategoryInternal(String name, String parentId, Integer level, Integer sortOrder) {
         ProductCategory c = new ProductCategory();
         c.setCategoryId("CAT_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         c.setName(name);
@@ -100,7 +118,6 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
         c.setSortOrder(sortOrder);
         c.setIsEnabled(true);
         c.setCreateTime(LocalDateTime.now());
-        // code field can be same as categoryId or simplified
         c.setCode(c.getCategoryId());
         return c;
     }

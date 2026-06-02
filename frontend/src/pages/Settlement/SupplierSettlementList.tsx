@@ -3,7 +3,7 @@ import { Table, Button, Input, Select, Space, Tag, message, Tooltip, Dropdown, F
 import type { UploadFile } from 'antd/es/upload/interface';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
-import { EyeOutlined, MoreOutlined, DeleteOutlined, PayCircleOutlined, UploadOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { EyeOutlined, MoreOutlined, PayCircleOutlined, UploadOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import PageDoc from '../../components/PageDoc';
 import SearchFormLayout from '../../components/SearchFormLayout';
@@ -248,14 +248,6 @@ const SupplierSettlementList: React.FC = () => {
         onClick: () => { setCurrentRecord(record); setIsVoucherModalOpen(true); }
       });
     }
-
-    items.push({
-        key: 'delete',
-        label: '删除',
-        danger: true,
-        icon: <DeleteOutlined />,
-        onClick: () => { message.success('删除成功 (演示)'); }
-    });
 
     return items;
   };

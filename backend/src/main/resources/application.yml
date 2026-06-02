@@ -37,7 +37,7 @@ spring:
       auto-commit: true
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate  # 默认profile仅校验，防止意外DDL变更。开发/本地环境在application-dev.yml中覆盖为update
     show-sql: true
     properties:
       hibernate:
@@ -52,7 +52,7 @@ spring:
     baseline-on-migrate: true
     baseline-version: "5.100"
     validate-on-migrate: false
-    clean-disabled: false
+    clean-disabled: true  # 生产环境禁止Flyway清理数据库
     locations: classpath:db/migration
   sql:
     init:
@@ -120,6 +120,19 @@ supplypro:
   rate-limit:
     enabled: true
     requests-per-second: 100
+  security:
+    # 严格认证模式：开启后，所有写操作(POST/PUT/DELETE)需要JWT认证，GET保持公开
+    # 默认false保持现有行为；确认前端和用户准备好后改为true
+    strict-mode: false
+  snapshot:
+    retention:
+      # 快照保留天数（超过此天数的非关键快照将被清理）
+      # 设置为 0 或负数可禁用自动清理
+      max-age-days: 90
+      # 是否启用自动清理（默认false，需手动开启）
+      auto-cleanup-enabled: false
+      # 每个采购单最少保留的快照数量（不受时间限制）
+      min-keep-per-order: 2
 
 file:
   upload-dir: uploads
